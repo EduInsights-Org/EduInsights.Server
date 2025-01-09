@@ -1,41 +1,34 @@
+using Scalar.AspNetCore;
+using EduInsights.Server.EndPoints;
+using EduInsights.Server.Extensions;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+builder.AddApplicationServices(builder.Configuration);
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
-}
-
-app.UseHttpsRedirection();
-
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
+    app.MapScalarApiReference((option) =>
     {
-        var forecast = Enumerable.Range(1, 5).Select(index =>
-                new WeatherForecast
-                (
-                    DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-                    Random.Shared.Next(-20, 55),
-                    summaries[Random.Shared.Next(summaries.Length)]
-                ))
-            .ToArray();
-        return forecast;
-    })
-    .WithName("GetWeatherForecast");
-
-app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
+        option
+            .WithTitle("EduInsight App")
+            .WithTheme(ScalarTheme.BluePlanet)
+            .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
+    });
 }
+
+// app.UseHttpsRedirection();
+app.MapAuthEndPoints();
+app.MapUsersEndPoints();
+app.MapInstitutesEndPoints();
+app.MapBatchesEndpoints();
+
+app.UseCors(ServiceExtensions.CorsPolicyName);
+app.UseAuthentication();
+app.UseAuthorization();
+app.Run();
