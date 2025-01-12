@@ -1,4 +1,4 @@
-namespace EduInsights.Server.Contracts;
+namespace EduInsights.Server.Errors.Common;
 
 public sealed record Error(string Code, string Description)
 {

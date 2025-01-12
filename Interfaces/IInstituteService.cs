@@ -1,13 +1,13 @@
+using EduInsights.Server.Contracts;
 using EduInsights.Server.Entities;
 
 namespace EduInsights.Server.Interfaces;
 
 public interface IInstituteService
 {
-    Task<Institute?> GetInstituteByUserIdAsync(string id);
+    Task<ApiResponse<Institute>> GetInstituteByUserIdAsync(string id);
 
-    Task AddInstituteAsync(Institute institute);
+    Task<ApiResponse<Institute>> AddInstituteAsync(Institute institute);
 
-    Task<List<Institute>?> GetAllInstitutes();
-
+    Task<ApiResponse<List<Institute>>> GetAllInstitutes();
 }

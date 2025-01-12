@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using EduInsights.Server.Contracts;
 using EduInsights.Server.Entities;
 using EduInsights.Server.Interfaces;
 using Microsoft.IdentityModel.Tokens;
@@ -15,7 +16,7 @@ public class TokenService(IConfiguration configuration, IMongoDatabase database,
     private readonly IMongoCollection<RefreshToken> _refreshTokenCollection =
         database.GetCollection<RefreshToken>("refresh_tokens");
 
-    public string GenerateAccessToken(string userId, string userRole)
+    public ApiResponse<string> GenerateAccessToken(string userId, string userRole)
     {
         try
         {
@@ -40,16 +41,19 @@ public class TokenService(IConfiguration configuration, IMongoDatabase database,
                 signingCredentials: credentials
             );
 
-            return new JwtSecurityTokenHandler().WriteToken(token);
+            var writeToken = new JwtSecurityTokenHandler().WriteToken(token);
+            return writeToken is null
+                ? ApiResponse<string>.ErrorResult("Error when writing Access token", 500)
+                : ApiResponse<string>.SuccessResult(writeToken);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error generating access token for user ID: {UserId}", userId);
-            throw new Exception("An error occurred while generating the access token.");
+            logger.LogError(ex, "Error when generating Access token: {ex.Message}", ex.Message);
+            return ApiResponse<string>.ErrorResult("Error when generating Access token", 500);
         }
     }
 
-    public async Task<RefreshToken> GenerateRefreshToken(string userId)
+    public async Task<ApiResponse<RefreshToken>> GenerateRefreshToken(string userId)
     {
         try
         {
@@ -62,44 +66,51 @@ public class TokenService(IConfiguration configuration, IMongoDatabase database,
             };
 
             await _refreshTokenCollection.InsertOneAsync(tokenModel);
-            return tokenModel;
+            return ApiResponse<RefreshToken>.SuccessResult(tokenModel);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error generating refresh token for user ID: {UserId}", userId);
-            throw new Exception("An error occurred while generating the refresh token.");
+            logger.LogError(ex, "Error when generating the refresh token: {UserId}", userId);
+            return ApiResponse<RefreshToken>.ErrorResult("Error when generating the refresh token.", 500);
         }
     }
 
-    public async Task RevokeRefreshToken(string token)
+    public async Task<ApiResponse<string>> RevokeRefreshToken(string token)
     {
         try
         {
             var filter = Builders<RefreshToken>.Filter.Eq(rt => rt.Token, token);
             var update = Builders<RefreshToken>.Update.Set(rt => rt.Revoked, true);
-            await _refreshTokenCollection.UpdateOneAsync(filter, update);
+            var result = await _refreshTokenCollection.UpdateOneAsync(filter, update);
+
+            return result.ModifiedCount > 0
+                ? ApiResponse<string>.SuccessResult("Refresh token successfully revoked.")
+                : ApiResponse<string>.ErrorResult("Refresh token not found or already revoked.", 404);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error revoking refresh token: {Token}", token);
-            throw new Exception("An error occurred while revoking the refresh token.");
+            logger.LogError(ex, "Error when revoking refresh token: {Token}", token);
+            return ApiResponse<string>.ErrorResult("Error when revoking the refresh token.", 500);
         }
     }
 
-    public async Task<RefreshToken> GetRefreshToken(string token)
+    public async Task<ApiResponse<RefreshToken>> GetRefreshToken(string token)
     {
         try
         {
-            return await _refreshTokenCollection.Find(rt => rt.Token == token).FirstOrDefaultAsync();
+            var refreshToken = await _refreshTokenCollection.Find(rt => rt.Token == token).FirstOrDefaultAsync();
+            return refreshToken is null
+                ? ApiResponse<RefreshToken>.ErrorResult("Refresh token not found.", 404)
+                : ApiResponse<RefreshToken>.SuccessResult(refreshToken);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error retrieving refresh token: {Token}", token);
-            throw new Exception("An error occurred while retrieving the refresh token.");
+            logger.LogError(ex, "Error when retrieving refresh token: {Token}", token);
+            return ApiResponse<RefreshToken>.ErrorResult("Error when retrieving the refresh token.", 500);
         }
     }
 
-    public async Task<RefreshToken?> GetRefreshTokenByUserId(string userId)
+    public async Task<ApiResponse<RefreshToken>> GetRefreshTokenByUserId(string userId)
     {
         try
         {
@@ -107,30 +118,33 @@ public class TokenService(IConfiguration configuration, IMongoDatabase database,
                 .Find(t => t.UserId == userId)
                 .SortByDescending(t => t.ExpiryDate)
                 .FirstOrDefaultAsync();
-
-            return token;
+            return token is null
+                ? ApiResponse<RefreshToken>.ErrorResult("Refresh token not found.", 404)
+                : ApiResponse<RefreshToken>.SuccessResult(token);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error retrieving refresh token: {userId}", userId);
-            throw new Exception("An error occurred while retrieving the refresh token.");
+            logger.LogError(ex, "Error when retrieving refresh token: {userId}", userId);
+            return ApiResponse<RefreshToken>.ErrorResult("Error when retrieving the refresh token.", 500);
         }
     }
 
-    public async Task<bool> ValidateRefreshToken(string token)
+    public async Task<ApiResponse<bool>> ValidateRefreshToken(string token)
     {
         try
         {
-            var storedRefreshToken = await GetRefreshToken(token);
+            var storedRefreshToken = (await GetRefreshToken(token)).Data;
+            if (storedRefreshToken is null) return ApiResponse<bool>.ErrorResult("Refresh token not found.", 404);
 
-            return storedRefreshToken.Token == token
-                   && !storedRefreshToken.Revoked
-                   && storedRefreshToken.ExpiryDate >= DateTime.UtcNow;
+            var isValid = storedRefreshToken.Token == token
+                          && !storedRefreshToken.Revoked
+                          && storedRefreshToken.ExpiryDate >= DateTime.UtcNow;
+            return ApiResponse<bool>.SuccessResult(isValid);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error validating refresh token: {Token}", token);
-            throw new Exception("An error occurred while validating the refresh token.");
+            logger.LogError(ex, "Error when validating refresh token: {Token}", token);
+            return ApiResponse<bool>.ErrorResult("Error when validating the refresh token.", 500);
         }
     }
 }

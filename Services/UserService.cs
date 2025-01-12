@@ -5,11 +5,12 @@ using MongoDB.Driver;
 
 namespace EduInsights.Server.Services;
 
-public class UserService(IMongoDatabase database, IStudentService studentService) : IUserService
+public class UserService(IMongoDatabase database, IStudentService studentService, ILogger<UserService> logger)
+    : IUserService
 {
     private readonly IMongoCollection<User> _userCollection = database.GetCollection<User>("users");
 
-    public async Task<AddUserResponse> AddUserAsync(CreateUserRequest createUser)
+    public async Task<ApiResponse<User>> AddUserAsync(CreateUserRequest createUser)
     {
         try
         {
@@ -23,25 +24,24 @@ public class UserService(IMongoDatabase database, IStudentService studentService
                 CreatedAt = DateTime.Now
             };
             await _userCollection.InsertOneAsync(user);
-            return new AddUserResponse("User registered successfully", true);
+            return ApiResponse<User>.SuccessResult(user);
         }
         catch (Exception ex)
         {
-            return new AddUserResponse($"Failed to register user: {ex.Message}", false);
+            logger.LogError(ex, "Error when Adding user");
+            return ApiResponse<User>.ErrorResult("Error when Adding user", 500);
         }
     }
 
-
-    public async Task<AddUsersResponse> AddUsersAsync(CreateUserRequest[] createUsersRequest)
+    public async Task<ApiResponse<AddUsersResponse>> AddUsersAsync(CreateUserRequest[] createUsersRequest)
     {
         var invalidUsers = new List<string>();
         var existingUsers = new List<string>();
         var successfullyAddedUsers = new List<string>();
+        var usersToInsert = new List<User>();
 
         try
         {
-            var usersToInsert = new List<User>();
-
             foreach (var request in createUsersRequest)
             {
                 if (string.IsNullOrWhiteSpace(request.Password) ||
@@ -90,64 +90,89 @@ public class UserService(IMongoDatabase database, IStudentService studentService
             {
                 await _userCollection.InsertManyAsync(usersToInsert);
                 successfullyAddedUsers.AddRange(usersToInsert.Select(u => u.UserName));
+
+                var studentsToInsert = (from s in createUsersRequest
+                        where s.Role == "student\r"
+                        select new Student
+                        {
+                            IndexNumber = s.IndexNumber!,
+                            UserId = usersToInsert.Find(u => u.UserName == s.UserName)!.Id
+                        })
+                    .ToList();
+
+
+                //update student collection if role is student
+                if (studentsToInsert.Count > 0)
+                {
+                    var addUsersResult = await studentService.AddStudentsAsync(studentsToInsert);
+                    if (!addUsersResult.Success)
+                        return ApiResponse<AddUsersResponse>.ErrorResult("Error when adding students", 500);
+                }
             }
 
-            var studentsToInsert = (from s in createUsersRequest
-                    where s.Role == "student"
-                    select new Student
-                    {
-                        IndexNumber = s.IndexNumber!,
-                        UserId = usersToInsert.Find(u => u.UserName == s.UserName)!.Id
-                    })
-                .ToList();
-
-            //update student collection if role is student
-            if (studentsToInsert.Count > 0)
-                await studentService.AddStudentsAsync(studentsToInsert);
-
-            return new AddUsersResponse
+            var addUsersResponse = new AddUsersResponse
             {
                 Success = true,
-                SuccessfullyAddedUsers = successfullyAddedUsers,
+                AddedUsers = successfullyAddedUsers,
                 InvalidUsers = invalidUsers,
                 ExistingUsers = existingUsers,
                 Message =
                     $"Successfully added {successfullyAddedUsers.Count} users. {invalidUsers.Count} invalid users. {existingUsers.Count} users already existed."
             };
+            return ApiResponse<AddUsersResponse>.SuccessResult(addUsersResponse);
         }
         catch (Exception ex)
         {
-            return new AddUsersResponse
-            {
-                Success = false,
-                SuccessfullyAddedUsers = successfullyAddedUsers,
-                InvalidUsers = invalidUsers,
-                ExistingUsers = existingUsers,
-                Message = $"Error when adding users: {ex.Message}"
-            };
+            logger.LogError(ex, "Error when Adding users");
+            return ApiResponse<AddUsersResponse>.ErrorResult("Error when adding users", 500);
         }
     }
 
-    public async Task<GetUserResponse?> GetUserByIdAsync(string id)
+    public async Task<ApiResponse<User>> GetUserByIdAsync(string id)
     {
         try
         {
             var user = await _userCollection.Find(u => u.Id == id).FirstOrDefaultAsync();
-            return new GetUserResponse(user, true, "User found successfully");
+            return user is null
+                ? ApiResponse<User>.ErrorResult("User not found", 404)
+                : ApiResponse<User>.SuccessResult(user);
         }
-        catch
+        catch (Exception ex)
         {
-            throw new Exception("An error occurred while retrieving the user info.");
+            logger.LogError(ex, "Error when getting user");
+            return ApiResponse<User>.ErrorResult("Error when getting user", 500);
         }
     }
 
-    public async Task<List<User>?> GetAllUsers()
+    public async Task<ApiResponse<List<User>>> GetAllUsers()
     {
-        return await _userCollection.Find(_ => true).ToListAsync();
+        try
+        {
+            var users = await _userCollection.Find(_ => true).ToListAsync();
+            return users is null
+                ? ApiResponse<List<User>>.ErrorResult("Users not found", 404)
+                : ApiResponse<List<User>>.SuccessResult(users);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error when getting users");
+            return ApiResponse<List<User>>.ErrorResult("Error when getting users", 500);
+        }
     }
 
-    public async Task<User?> FindUserByUserName(string userName)
+    public async Task<ApiResponse<User>> FindUserByUserName(string userName)
     {
-        return await _userCollection.Find(u => u.UserName == userName).FirstOrDefaultAsync();
+        try
+        {
+            var user = await _userCollection.Find(u => u.UserName == userName).FirstOrDefaultAsync();
+            return user is null
+                ? ApiResponse<User>.ErrorResult("User not found", 404)
+                : ApiResponse<User>.SuccessResult(user);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error when getting user");
+            return ApiResponse<User>.ErrorResult("Error when getting user", 500);
+        }
     }
 }

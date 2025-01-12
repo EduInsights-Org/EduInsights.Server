@@ -5,23 +5,27 @@ using MongoDB.Driver;
 
 namespace EduInsights.Server.Services;
 
-public class BatchService(IMongoDatabase database) : IBatchService
+public class BatchService(IMongoDatabase database, ILogger<BatchService> logger) : IBatchService
 {
     private readonly IMongoCollection<Batch> _batchesCollection = database.GetCollection<Batch>("batches");
 
-    public async Task<List<Batch>?> GetBatchesByInstituteIdAsync(string instituteId)
+    public async Task<ApiResponse<List<Batch>>> GetBatchesByInstituteIdAsync(string instituteId)
     {
         try
         {
-            return await _batchesCollection.Find(b => b.InstituteId == instituteId).ToListAsync();
+            var batches = await _batchesCollection.Find(b => b.InstituteId == instituteId).ToListAsync();
+            return batches is null
+                ? ApiResponse<List<Batch>>.ErrorResult("Batches not found for provided institute ID.", 404)
+                : ApiResponse<List<Batch>>.SuccessResult(batches);
         }
-        catch
+        catch (Exception ex)
         {
-            throw new Exception("An error occurred while retrieving the batches.");
+            logger.LogError(ex, "Error when fetching Batches: {ex.Message}", ex.Message);
+            return ApiResponse<List<Batch>>.ErrorResult("Error when fetching Batches", 500);
         }
     }
 
-    public async Task<Batch> AddBatchAsync(CreateBatchRequest request)
+    public async Task<ApiResponse<Batch>> AddBatchAsync(CreateBatchRequest request)
     {
         try
         {
@@ -31,23 +35,28 @@ public class BatchService(IMongoDatabase database) : IBatchService
                 InstituteId = request.InstituteId
             };
             await _batchesCollection.InsertOneAsync(batch);
-            return batch;
+            return ApiResponse<Batch>.SuccessResult(batch);
         }
-        catch
+        catch (Exception ex)
         {
-            throw new Exception("An error occurred while creating the batch.");
+            logger.LogError(ex, "Error when adding Batch: {ex.Message}", ex.Message);
+            return ApiResponse<Batch>.ErrorResult("Error when adding Batch", 500);
         }
     }
 
-    public async Task<List<Batch>?> GetAllBatches()
+    public async Task<ApiResponse<List<Batch>>> GetAllBatches()
     {
         try
         {
-            return await _batchesCollection.Find(_ => true).ToListAsync();
+            var batches = await _batchesCollection.Find(_ => true).ToListAsync();
+            return batches is null
+                ? ApiResponse<List<Batch>>.ErrorResult("Batches not found.", 404)
+                : ApiResponse<List<Batch>>.SuccessResult(batches);
         }
-        catch
+        catch (Exception ex)
         {
-            throw new Exception("An error occurred while retrieving the batches.");
+            logger.LogError(ex, "Error when fetching Batch: {ex.Message}", ex.Message);
+            return ApiResponse<List<Batch>>.ErrorResult("Error when fetching Batches", 500);
         }
     }
 }

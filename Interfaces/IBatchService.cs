@@ -5,10 +5,10 @@ namespace EduInsights.Server.Interfaces;
 
 public interface IBatchService
 {
-    Task<List<Batch>?> GetBatchesByInstituteIdAsync(string instituteId);
+    Task<ApiResponse<List<Batch>>> GetBatchesByInstituteIdAsync(string instituteId);
 
-    Task<Batch> AddBatchAsync(CreateBatchRequest batch);
+    Task<ApiResponse<Batch>> AddBatchAsync(CreateBatchRequest batch);
 
-    Task<List<Batch>?> GetAllBatches();
+    Task<ApiResponse<List<Batch>>> GetAllBatches();
 
 }
