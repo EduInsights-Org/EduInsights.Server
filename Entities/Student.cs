@@ -13,5 +13,9 @@ public class Student
     [BsonRepresentation(BsonType.ObjectId)]
     public string UserId { get; set; } = null!;
 
+    [BsonElement("batch_id")]
+    [BsonRepresentation(BsonType.ObjectId)]
+    public string BatchId { get; set; } = null!;
+
     [BsonElement("index_number")] public string IndexNumber { get; set; } = null!;
 }

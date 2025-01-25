@@ -1,6 +1,7 @@
 using EduInsights.Server.Contracts;
 using EduInsights.Server.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using MongoDB.Bson;
 
 namespace EduInsights.Server.EndPoints;
 
@@ -18,11 +19,13 @@ public static class UsersEndpoints
             return Results.Json(result, statusCode: result.StatusCode);
         });
 
-        group.MapGet("/", async ([FromServices] IUserService userService) =>
-        {
-            var result = await userService.GetAllUsers();
-            return Results.Json(result, statusCode: result.StatusCode);
-        });
+        group.MapGet("/",
+            async ([FromServices] IUserService userService, [FromQuery] string? instituteId = null,
+                [FromQuery] string? batchId = null) =>
+            {
+                var result = await userService.GetUsers(instituteId, batchId);
+                return Results.Json(result, statusCode: result.StatusCode);
+            });
 
         group.MapPost("/", async ([FromBody] CreateUserRequest createUser, [FromServices] IUserService userService) =>
         {

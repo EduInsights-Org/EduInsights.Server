@@ -53,4 +53,21 @@ public class StudentService(IMongoDatabase database, ILogger<StudentService> log
             return ApiResponse<List<Student>>.ErrorResult("Error when fetching Students", 500);
         }
     }
+
+    public async Task<ApiResponse<Student>> GetStudentByUserIdAsync(string userId)
+    {
+        try
+        {
+            var student = await _studentsCollection.Find(s => s.UserId == userId).FirstOrDefaultAsync();
+            
+            return student is null
+                ? ApiResponse<Student>.ErrorResult("No students found", 404)
+                : ApiResponse<Student>.SuccessResult(student);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error when fetching Students: {ex.Message}", ex.Message);
+            return ApiResponse<Student>.ErrorResult("Error when fetching Students", 500);
+        }
+    }
 }

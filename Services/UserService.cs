@@ -52,16 +52,17 @@ public class UserService(
             {
                 return ApiResponse<User>.ErrorResult("Invalid data found", 400);
             }
-            
+
             var student = new Student
             {
                 IndexNumber = createUser.IndexNumber,
                 UserId = user.Id,
+                BatchId = createUser.BatchId,
             };
             var addStudentResult = await studentService.AddStudentAsync(student);
             return !addStudentResult.Success
                 ? ApiResponse<User>.ErrorResult("Error when adding students", 500)
-                : ApiResponse<User>.SuccessResult(user);
+                : ApiResponse<User>.SuccessResult(user, 200, "User added successfully");
         }
         catch (Exception ex)
         {
@@ -69,7 +70,7 @@ public class UserService(
             return ApiResponse<User>.ErrorResult("Error when Adding user", 500);
         }
     }
-    
+
     public async Task<ApiResponse<AddUsersResponse>> AddUsersAndStudentsAsync(CreateUserRequest[] createUsersRequest)
     {
         var invalidUsers = new List<string>();
@@ -129,10 +130,11 @@ public class UserService(
                 successfullyAddedUsers.AddRange(usersToInsert.Select(u => u.UserName));
 
                 var studentsToInsert = (from s in createUsersRequest
-                        where s.Role == "student\r"
+                        where s.Role == UserRole.Student
                         select new Student
                         {
                             IndexNumber = s.IndexNumber!,
+                            BatchId = s.BatchId,
                             UserId = usersToInsert.Find(u => u.UserName == s.UserName)!.Id
                         })
                     .ToList();
@@ -194,6 +196,53 @@ public class UserService(
         {
             logger.LogError(ex, "Error when getting users");
             return ApiResponse<List<User>>.ErrorResult("Error when getting users", 500);
+        }
+    }
+
+    public async Task<ApiResponse<List<GetUserWithStudentResponse>>> GetUsers(string? instituteId, string? batchId)
+    {
+        try
+        {
+            // Fetch users based on whether `instituteId` is provided or not
+            var filter = !string.IsNullOrEmpty(instituteId)
+                ? Builders<User>.Filter.Eq(u => u.InstituteId, instituteId)
+                : Builders<User>.Filter.Empty;
+
+            var userList = await _userCollection.Find(filter).ToListAsync();
+
+            if (userList.Count == 0)
+            {
+                return ApiResponse<List<GetUserWithStudentResponse>>.ErrorResult(
+                    !string.IsNullOrEmpty(instituteId)
+                        ? "Users not found for provided institute"
+                        : "No users found",
+                    404
+                );
+            }
+
+            // Fetch users with student details
+            var usersWithStudentDetails = new List<GetUserWithStudentResponse>();
+            foreach (var user in userList)
+            {
+                var student = await studentService.GetStudentByUserIdAsync(user.Id);
+                usersWithStudentDetails.Add(new GetUserWithStudentResponse
+                {
+                    UserName = user.UserName,
+                    FirstName = user.FirstName,
+                    LastName = user.LastName,
+                    Email = user.Email,
+                    Role = user.Role,
+                    Id = user.Id,
+                    IndexNumber = student.Data?.IndexNumber,
+                });
+            }
+
+            return ApiResponse<List<GetUserWithStudentResponse>>.SuccessResult(usersWithStudentDetails);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error when getting users");
+            return ApiResponse<List<GetUserWithStudentResponse>>.ErrorResult("Error when getting users", 500);
         }
     }
 
