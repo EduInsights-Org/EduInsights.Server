@@ -9,6 +9,20 @@ public class StudentService(IMongoDatabase database, ILogger<StudentService> log
 {
     private readonly IMongoCollection<Student> _studentsCollection = database.GetCollection<Student>("students");
 
+    public async Task<ApiResponse<string>> AddStudentAsync(Student studentRequest)
+    {
+        try
+        {
+            await _studentsCollection.InsertOneAsync(studentRequest);
+            return ApiResponse<string>.SuccessResult("Successfully added student");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error when adding students: {ex.Message}", ex.Message);
+            return ApiResponse<string>.ErrorResult("Error when adding students", 500);
+        }
+    }
+
     public async Task<ApiResponse<string>> AddStudentsAsync(List<Student> studentsRequest)
     {
         try
@@ -22,6 +36,7 @@ public class StudentService(IMongoDatabase database, ILogger<StudentService> log
             return ApiResponse<string>.ErrorResult("Error when adding students", 500);
         }
     }
+
 
     public async Task<ApiResponse<List<Student>>> GetAllStudentAsync()
     {

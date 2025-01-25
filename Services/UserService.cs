@@ -1,11 +1,15 @@
 using EduInsights.Server.Contracts;
 using EduInsights.Server.Entities;
+using EduInsights.Server.Enums;
 using EduInsights.Server.Interfaces;
 using MongoDB.Driver;
 
 namespace EduInsights.Server.Services;
 
-public class UserService(IMongoDatabase database, IStudentService studentService, ILogger<UserService> logger)
+public class UserService(
+    IMongoDatabase database,
+    IStudentService studentService,
+    ILogger<UserService> logger)
     : IUserService
 {
     private readonly IMongoCollection<User> _userCollection = database.GetCollection<User>("users");
@@ -14,17 +18,50 @@ public class UserService(IMongoDatabase database, IStudentService studentService
     {
         try
         {
+            if (string.IsNullOrWhiteSpace(createUser.Password) ||
+                string.IsNullOrWhiteSpace(createUser.FirstName) ||
+                string.IsNullOrWhiteSpace(createUser.LastName) ||
+                string.IsNullOrWhiteSpace(createUser.UserName) ||
+                string.IsNullOrWhiteSpace(createUser.Email))
+            {
+                return ApiResponse<User>.ErrorResult("Invalid data found", 400);
+            }
+
+            var existingUser =
+                await _userCollection.Find(u => u.UserName == createUser.UserName).FirstOrDefaultAsync();
+            if (existingUser != null)
+                return ApiResponse<User>.ErrorResult("User already existed", 400);
+
             var user = new User
             {
                 FirstName = createUser.FirstName,
                 LastName = createUser.LastName,
-                UserName = createUser.LastName,
+                UserName = createUser.UserName,
+                Email = createUser.Email,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(createUser.UserName),
+                InstituteId = createUser.InstituteId,
                 Role = createUser.Role,
-                PasswordHash = createUser.Password,
-                CreatedAt = DateTime.Now
+                CreatedAt = DateTime.UtcNow,
             };
             await _userCollection.InsertOneAsync(user);
-            return ApiResponse<User>.SuccessResult(user);
+
+            if (createUser.Role != UserRole.Student) return ApiResponse<User>.SuccessResult(user);
+            if (string.IsNullOrWhiteSpace(createUser.IndexNumber) ||
+                string.IsNullOrWhiteSpace(createUser.BatchId) ||
+                string.IsNullOrWhiteSpace(createUser.InstituteId))
+            {
+                return ApiResponse<User>.ErrorResult("Invalid data found", 400);
+            }
+            
+            var student = new Student
+            {
+                IndexNumber = createUser.IndexNumber,
+                UserId = user.Id,
+            };
+            var addStudentResult = await studentService.AddStudentAsync(student);
+            return !addStudentResult.Success
+                ? ApiResponse<User>.ErrorResult("Error when adding students", 500)
+                : ApiResponse<User>.SuccessResult(user);
         }
         catch (Exception ex)
         {
@@ -32,8 +69,8 @@ public class UserService(IMongoDatabase database, IStudentService studentService
             return ApiResponse<User>.ErrorResult("Error when Adding user", 500);
         }
     }
-
-    public async Task<ApiResponse<AddUsersResponse>> AddUsersAsync(CreateUserRequest[] createUsersRequest)
+    
+    public async Task<ApiResponse<AddUsersResponse>> AddUsersAndStudentsAsync(CreateUserRequest[] createUsersRequest)
     {
         var invalidUsers = new List<string>();
         var existingUsers = new List<string>();

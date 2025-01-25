@@ -26,14 +26,14 @@ public static class UsersEndpoints
 
         group.MapPost("/", async ([FromBody] CreateUserRequest createUser, [FromServices] IUserService userService) =>
         {
-            await userService.AddUserAsync(createUser);
-            return Results.Created();
+            var response = await userService.AddUserAsync(createUser);
+            return Results.Json(response, statusCode: response.StatusCode);
         });
 
         group.MapPost("/multi-add",
             async ([FromBody] CreateUserRequest[] request, [FromServices] IUserService userService) =>
             {
-                var response = await userService.AddUsersAsync(request);
+                var response = await userService.AddUsersAndStudentsAsync(request);
                 return Results.Json(response, statusCode: response.StatusCode);
             });
     }
