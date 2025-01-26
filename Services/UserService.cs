@@ -1,6 +1,5 @@
 using EduInsights.Server.Contracts;
 using EduInsights.Server.Entities;
-using EduInsights.Server.Enums;
 using EduInsights.Server.Interfaces;
 using MongoDB.Driver;
 
@@ -199,28 +198,50 @@ public class UserService(
         }
     }
 
-    public async Task<ApiResponse<List<GetUserWithStudentResponse>>> GetUsers(string? instituteId, string? batchId)
+    public async Task<ApiResponse<PaginatedResponse<List<GetUserWithStudentResponse>>>> GetUsers(
+        string? instituteId, string? batchId, int page, int pageSize)
     {
         try
         {
-            // Fetch users based on whether `instituteId` is provided or not
-            var filter = !string.IsNullOrEmpty(instituteId)
-                ? Builders<User>.Filter.Eq(u => u.InstituteId, instituteId)
-                : Builders<User>.Filter.Empty;
+            if (!string.IsNullOrEmpty(batchId) && string.IsNullOrEmpty(instituteId))
+            {
+                return ApiResponse<PaginatedResponse<List<GetUserWithStudentResponse>>>.ErrorResult(
+                    "Institute ID must be provided when filtering by Batch ID", 400);
+            }
 
-            var userList = await _userCollection.Find(filter).ToListAsync();
+            // Build the filter based on provided parameters
+            var filter = Builders<User>.Filter.Empty;
+
+            if (!string.IsNullOrEmpty(instituteId))
+            {
+                filter &= Builders<User>.Filter.Eq(u => u.InstituteId, instituteId);
+            }
+
+            if (!string.IsNullOrEmpty(batchId))
+            {
+                var studentFilter = Builders<Student>.Filter.Eq(s => s.BatchId, batchId);
+                var students = (await studentService.GetStudentsByFilterAsync(studentFilter)).Data;
+                if (students is null)
+                    return ApiResponse<PaginatedResponse<List<GetUserWithStudentResponse>>>.ErrorResult(
+                        "No students found", 404);
+
+                var userIds = students!.Select(s => s.UserId).ToList();
+                filter &= Builders<User>.Filter.In(u => u.Id, userIds);
+            }
+
+            // Pagination logic
+            var totalRecords = await _userCollection.CountDocumentsAsync(filter);
+            var userList = await _userCollection
+                .Find(filter)
+                .ToListAsync();
 
             if (userList.Count == 0)
             {
-                return ApiResponse<List<GetUserWithStudentResponse>>.ErrorResult(
-                    !string.IsNullOrEmpty(instituteId)
-                        ? "Users not found for provided institute"
-                        : "No users found",
-                    404
-                );
+                return ApiResponse<PaginatedResponse<List<GetUserWithStudentResponse>>>.ErrorResult(
+                    "No users found for the given criteria", 404);
             }
 
-            // Fetch users with student details
+            // Map users to response with student details
             var usersWithStudentDetails = new List<GetUserWithStudentResponse>();
             foreach (var user in userList)
             {
@@ -237,12 +258,87 @@ public class UserService(
                 });
             }
 
-            return ApiResponse<List<GetUserWithStudentResponse>>.SuccessResult(usersWithStudentDetails);
+            usersWithStudentDetails = usersWithStudentDetails
+                .OrderBy(user => UserRole.GetRolePriority(user.Role))
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            var paginatedResponse = new PaginatedResponse<List<GetUserWithStudentResponse>>(
+                Data: usersWithStudentDetails,
+                TotalRecords: totalRecords,
+                CurrentPage: page,
+                PageSize: pageSize
+            );
+
+            return ApiResponse<PaginatedResponse<List<GetUserWithStudentResponse>>>.SuccessResult(paginatedResponse);
+        }
+        catch (FormatException ex)
+        {
+            logger.LogError(ex, "Invalid format for institute ID.");
+            return ApiResponse<PaginatedResponse<List<GetUserWithStudentResponse>>>.ErrorResult(
+                "Invalid ID format.", 400);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error when getting users");
-            return ApiResponse<List<GetUserWithStudentResponse>>.ErrorResult("Error when getting users", 500);
+            return ApiResponse<PaginatedResponse<List<GetUserWithStudentResponse>>>.ErrorResult(
+                "Error when getting users", 500);
+        }
+    }
+
+
+    public async Task<ApiResponse<GetRoleDistributionResponse>> GetRoleDistribution(string? instituteId)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(instituteId))
+                return ApiResponse<GetRoleDistributionResponse>.ErrorResult(
+                    "Institute ID cannot be null or empty.", 400);
+
+            var users = await _userCollection
+                .Find(user => user.InstituteId == instituteId)
+                .Project(user => new { user.Role })
+                .ToListAsync();
+
+            if (users.Count == 0)
+                return ApiResponse<GetRoleDistributionResponse>.ErrorResult(
+                    "No users found for the given Institute", 404);
+
+            var roleCounts = new GetRoleDistributionResponse();
+
+            foreach (var user in users)
+            {
+                switch (user.Role)
+                {
+                    case UserRole.SuperAdmin:
+                        roleCounts.SuperAdmin++;
+                        break;
+                    case UserRole.Admin:
+                        roleCounts.Admin++;
+                        break;
+                    case UserRole.DataEntry:
+                        roleCounts.DataEntry++;
+                        break;
+                    case UserRole.Student:
+                        roleCounts.Student++;
+                        break;
+                }
+            }
+
+            return ApiResponse<GetRoleDistributionResponse>.SuccessResult(roleCounts);
+        }
+        catch (FormatException ex)
+        {
+            logger.LogError(ex, "Invalid format for institute ID.");
+            return ApiResponse<GetRoleDistributionResponse>.ErrorResult(
+                "Invalid institute ID format.", 400);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error when getting users.");
+            return ApiResponse<GetRoleDistributionResponse>.ErrorResult(
+                "Error when getting users.", 500);
         }
     }
 

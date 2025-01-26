@@ -21,9 +21,16 @@ public static class UsersEndpoints
 
         group.MapGet("/",
             async ([FromServices] IUserService userService, [FromQuery] string? instituteId = null,
-                [FromQuery] string? batchId = null) =>
+                [FromQuery] string? batchId = null, [FromQuery] int page = 1, [FromQuery] int pageSize = 10) =>
             {
-                var result = await userService.GetUsers(instituteId, batchId);
+                var result = await userService.GetUsers(instituteId, batchId, page, pageSize);
+                return Results.Json(result, statusCode: result.StatusCode);
+            });
+
+        group.MapGet("/role-distribution",
+            async ([FromServices] IUserService userService, [FromQuery] string? instituteId) =>
+            {
+                var result = await userService.GetRoleDistribution(instituteId);
                 return Results.Json(result, statusCode: result.StatusCode);
             });
 
