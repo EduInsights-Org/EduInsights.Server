@@ -86,26 +86,29 @@ public class AuthService(
             if (string.IsNullOrWhiteSpace(refreshTokenCookie))
                 return ApiResponse<RefreshResponse>.ErrorResult("Refresh token is missing", 400);
 
-            var refreshToken = (await tokenService.GetRefreshToken(refreshTokenCookie)).Data;
-            if (refreshToken == null)
-                return ApiResponse<RefreshResponse>.ErrorResult("Refresh token is missing", 404);
+            var refreshTokenResult = await tokenService.GetRefreshToken(refreshTokenCookie);
+            if (!refreshTokenResult.Success)
+                return ApiResponse<RefreshResponse>.ErrorResult(refreshTokenResult.Message,
+                    refreshTokenResult.StatusCode);
 
-            var userResult = (await userService.GetUserByIdAsync(refreshToken.UserId)).Data;
-            if (userResult == null)
-                return ApiResponse<RefreshResponse>.ErrorResult("User not found", 404);
+            var userResult = await userService.GetUserByIdAsync(refreshTokenResult.Data!.UserId);
+            if (!userResult.Success)
+                return ApiResponse<RefreshResponse>.ErrorResult(userResult.Message, userResult.StatusCode);
 
-            var newAccessToken = tokenService.GenerateAccessToken(userResult.Id, userResult.Role).Data;
-            if (newAccessToken is null)
-                return ApiResponse<RefreshResponse>.ErrorResult("Error when generating Access token", 404);
+            var newAccessTokenResult = tokenService.GenerateAccessToken(userResult.Data!.Id, userResult.Data!.Role);
+            if (!newAccessTokenResult.Success)
+                return ApiResponse<RefreshResponse>.ErrorResult(newAccessTokenResult.Message,
+                    newAccessTokenResult.StatusCode);
 
-            var isRefreshTokenValid = (await tokenService.ValidateRefreshToken(refreshTokenCookie)).Data;
-            if (!isRefreshTokenValid)
+            var isRefreshTokenValidResult = (await tokenService.ValidateRefreshToken(refreshTokenCookie));
+            if (!isRefreshTokenValidResult.Success)
             {
-                await tokenService.RevokeRefreshToken(refreshToken.Token);
-                return ApiResponse<RefreshResponse>.ErrorResult("Invalid or expired refresh token", 401);
+                await tokenService.RevokeRefreshToken(refreshTokenResult.Data!.Token);
+                return ApiResponse<RefreshResponse>.ErrorResult(isRefreshTokenValidResult.Message,
+                    isRefreshTokenValidResult.StatusCode);
             }
 
-            var refreshResponse = new RefreshResponse(newAccessToken, userResult.Id);
+            var refreshResponse = new RefreshResponse(newAccessTokenResult.Data!, userResult.Data!.Id);
             return ApiResponse<RefreshResponse>.SuccessResult(refreshResponse);
         }
         catch (Exception ex)
