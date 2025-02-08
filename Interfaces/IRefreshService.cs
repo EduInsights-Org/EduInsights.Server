@@ -1,14 +1,14 @@
-
+using EduInsights.Server.Contracts;
 using EduInsights.Server.Entities;
 
 namespace EduInsights.Server.Interfaces;
 
 public interface IRefreshService
 {
-    public string GenerateAccessToken(string userId, string userRole);
-    Task<RefreshToken> GenerateRefreshToken(string userId);
-    Task RevokeRefreshToken(string token);
-    Task<RefreshToken> GetRefreshToken(string token);
-    Task<RefreshToken?> GetRefreshTokenByUserId(string userId);
-    Task<bool> ValidateRefreshToken(string token);
+    public ApiResponse<string> GenerateAccessToken(string userId, string userRole);
+    Task<ApiResponse<RefreshToken>> GenerateRefreshToken(string userId);
+    Task<ApiResponse<string>> RevokeRefreshToken(string token);
+    Task<ApiResponse<RefreshToken>> GetRefreshToken(string token);
+    Task<ApiResponse<RefreshToken>> GetRefreshTokenByUserId(string userId);
+    Task<ApiResponse<bool>> ValidateRefreshToken(string token);
 }

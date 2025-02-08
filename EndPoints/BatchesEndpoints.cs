@@ -7,7 +7,6 @@ namespace EduInsights.Server.EndPoints;
 public static class BatchesEndpoints
 {
     private const string BatchesEndpointsName = "/api/v1/batches";
-    private const string GetBatchEndPointName = "GetBatch";
 
     public static void MapBatchesEndpoints(this WebApplication app)
     {
@@ -16,19 +15,19 @@ public static class BatchesEndpoints
         group.MapGet("/{instituteId}", async (string instituteId, [FromServices] IBatchService batchService) =>
         {
             var result = await batchService.GetBatchesByInstituteIdAsync(instituteId);
-            return result is null ? Results.NotFound() : Results.Ok(result);
+            return Results.Json(result, statusCode: result.StatusCode);
         });
 
         group.MapGet("/", async ([FromServices] IBatchService batchService) =>
         {
             var result = await batchService.GetAllBatches();
-            return result is null ? Results.NotFound() : Results.Ok(result);
-        }).WithName(GetBatchEndPointName);
+            return Results.Json(result, statusCode: result.StatusCode);
+        });
 
         group.MapPost("/", async ([FromBody] CreateBatchRequest request, [FromServices] IBatchService batchService) =>
         {
-            var batch = await batchService.AddBatchAsync(request);
-            return Results.CreatedAtRoute(GetBatchEndPointName, new { id = batch.Id }, batch);
+            var result = await batchService.AddBatchAsync(request);
+            return Results.Json(result, statusCode: result.StatusCode);
         });
     }
 }

@@ -2,7 +2,7 @@ using EduInsights.Server.Entities;
 
 namespace EduInsights.Server.Contracts;
 
-public record class RefreshResponse(
-    string AccessToken,
-    string UserId
+public record LogoutUserResponse(
+    string RefreshToken,
+    string UserName
 );

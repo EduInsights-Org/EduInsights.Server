@@ -27,6 +27,7 @@ app.MapAuthEndPoints();
 app.MapUsersEndPoints();
 app.MapInstitutesEndPoints();
 app.MapBatchesEndpoints();
+app.MapStudentsEndpoints();
 
 app.UseCors(ServiceExtensions.CorsPolicyName);
 app.UseAuthentication();

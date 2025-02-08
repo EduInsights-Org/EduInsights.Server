@@ -1,6 +1,7 @@
 using EduInsights.Server.Contracts;
 using EduInsights.Server.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using MongoDB.Bson;
 
 namespace EduInsights.Server.EndPoints;
 
@@ -8,60 +9,42 @@ public static class UsersEndpoints
 {
     private const string UserEndpointName = "/api/v1/users";
 
-    public static RouteGroupBuilder MapUsersEndPoints(this WebApplication app)
+    public static void MapUsersEndPoints(this WebApplication app)
     {
         var group = app.MapGroup(UserEndpointName).WithTags("EduInsights endpoints");
 
         group.MapGet("/{id}", async (string id, [FromServices] IUserService userService) =>
         {
-            
             var result = await userService.GetUserByIdAsync(id);
-            return result is null ? Results.NotFound() : Results.Ok(result.User);
+            return Results.Json(result, statusCode: result.StatusCode);
         });
 
-        group.MapGet("/", async ([FromServices] IUserService userService) =>
-        {
-            var result = await userService.GetAllUsers();
-            return result is null ? Results.NotFound() : Results.Ok(result);
-        });
+        group.MapGet("/",
+            async ([FromServices] IUserService userService, [FromQuery] string? instituteId = null,
+                [FromQuery] string? batchId = null, [FromQuery] int page = 1, [FromQuery] int pageSize = 10) =>
+            {
+                var result = await userService.GetUsers(instituteId, batchId, page, pageSize);
+                return Results.Json(result, statusCode: result.StatusCode);
+            });
+
+        group.MapGet("/role-distribution",
+            async ([FromServices] IUserService userService, [FromQuery] string? instituteId) =>
+            {
+                var result = await userService.GetRoleDistribution(instituteId);
+                return Results.Json(result, statusCode: result.StatusCode);
+            });
 
         group.MapPost("/", async ([FromBody] CreateUserRequest createUser, [FromServices] IUserService userService) =>
         {
-            await userService.AddUserAsync(createUser);
-            return Results.Created();
+            var response = await userService.AddUserAsync(createUser);
+            return Results.Json(response, statusCode: response.StatusCode);
         });
 
         group.MapPost("/multi-add",
             async ([FromBody] CreateUserRequest[] request, [FromServices] IUserService userService) =>
             {
-                try
-                {
-                    var response = await userService.AddUsersAsync(request);
-
-                    if (response.Success)
-                    {
-                        return Results.Created(UserEndpointName, new
-                        {
-                            message = response.Message,
-                            addedUsers = response.SuccessfullyAddedUsers,
-                            invalidUsers = response.InvalidUsers,
-                            existingUsers = response.ExistingUsers
-                        });
-                    }
-
-                    return Results.BadRequest(new
-                    {
-                        message = response.Message,
-                        invalidUsers = response.InvalidUsers,
-                        existingUsers = response.ExistingUsers
-                    });
-                }
-                catch (Exception ex)
-                {
-                    return Results.BadRequest(new { message = ex.Message });
-                }
+                var response = await userService.AddUsersAndStudentsAsync(request);
+                return Results.Json(response, statusCode: response.StatusCode);
             });
-
-        return group;
     }
 }

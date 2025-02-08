@@ -4,5 +4,5 @@ namespace EduInsights.Server.Contracts;
 
 public record class LoginUserResponse(
     string RefreshToken,
-    User User
+    User UserInfo
 );

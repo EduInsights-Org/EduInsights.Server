@@ -10,7 +10,8 @@ public class AuthService(
     IUserService userService,
     IRefreshService tokenService,
     IInstituteService instituteService,
-    IHttpContextAccessor httpContextAccessor) : IAuthService
+    IHttpContextAccessor httpContextAccessor,
+    ILogger<AuthService> logger) : IAuthService
 {
     private readonly IMongoCollection<User> _userCollection = database.GetCollection<User>("users");
 
@@ -32,16 +33,23 @@ public class AuthService(
         _httpContext.Response.Cookies.Delete(key);
     }
 
-    public async Task Register(RegisterUserRequest request)
+    public async Task<ApiResponse<User>> Register(RegisterUserRequest request)
     {
         try
         {
+            if (string.IsNullOrWhiteSpace(request.FirstName)
+                || string.IsNullOrWhiteSpace(request.LastName)
+                || string.IsNullOrWhiteSpace(request.UserName)
+                || string.IsNullOrWhiteSpace(request.Password)
+                || string.IsNullOrWhiteSpace(request.InstituteName)
+               ) return ApiResponse<User>.ErrorResult("Validation error.", 422);
+
             var existingUser = await _userCollection.Find(u => u.UserName == request.UserName).FirstOrDefaultAsync();
             if (existingUser != null)
-                throw new Exception("User already exists");
+                return ApiResponse<User>.ErrorResult("Can't add already exists user name.", 409);
 
             var hashedPassword = BCrypt.Net.BCrypt.HashPassword(request.Password);
-            
+
             var institute = new Institute
             {
                 Name = request.InstituteName,
@@ -59,63 +67,77 @@ public class AuthService(
                 CreatedAt = DateTime.Now
             };
             await _userCollection.InsertOneAsync(user);
+
+            return ApiResponse<User>.SuccessResult(user);
         }
         catch (Exception ex)
         {
-            throw new Exception($"Error when Register a User {ex.Message}");
+            logger.LogError(ex, "Error occurred while creating user.");
+            return ApiResponse<User>.ErrorResult("Error occurred while creating user.", 500);
         }
     }
 
-    public async Task<RefreshResponse> Refresh()
+    public async Task<ApiResponse<RefreshResponse>> Refresh()
     {
         try
         {
             var refreshTokenCookie = _httpContext.Request.Cookies["jwt"];
 
             if (string.IsNullOrWhiteSpace(refreshTokenCookie))
-                throw new Exception("Refresh token is missing");
+                return ApiResponse<RefreshResponse>.ErrorResult("Refresh token is missing", 400);
 
-            var refreshToken = await tokenService.GetRefreshToken(refreshTokenCookie);
-            if (refreshToken == null)
-                throw new Exception("An error occurred while retrieving the refresh token.");
+            var refreshTokenResult = await tokenService.GetRefreshToken(refreshTokenCookie);
+            if (!refreshTokenResult.Success)
+                return ApiResponse<RefreshResponse>.ErrorResult(refreshTokenResult.Message,
+                    refreshTokenResult.StatusCode);
 
-            var userResult = await userService.GetUserByIdAsync(refreshToken.UserId);
-            if (userResult?.User == null)
-                throw new Exception("User not found");
+            var userResult = await userService.GetUserByIdAsync(refreshTokenResult.Data!.UserId);
+            if (!userResult.Success)
+                return ApiResponse<RefreshResponse>.ErrorResult(userResult.Message, userResult.StatusCode);
 
-            var newAccessToken = tokenService.GenerateAccessToken(userResult.User!.Id, userResult.User.Role);
+            var newAccessTokenResult = tokenService.GenerateAccessToken(userResult.Data!.Id, userResult.Data!.Role);
+            if (!newAccessTokenResult.Success)
+                return ApiResponse<RefreshResponse>.ErrorResult(newAccessTokenResult.Message,
+                    newAccessTokenResult.StatusCode);
 
-            var isRefreshTokenValid = await tokenService.ValidateRefreshToken(refreshTokenCookie);
-            if (isRefreshTokenValid) return new RefreshResponse(newAccessToken, userResult.User);
-            await tokenService.RevokeRefreshToken(refreshToken.Token);
-            throw new Exception("Invalid or expired refresh token");
+            var isRefreshTokenValidResult = (await tokenService.ValidateRefreshToken(refreshTokenCookie));
+            if (!isRefreshTokenValidResult.Success)
+            {
+                await tokenService.RevokeRefreshToken(refreshTokenResult.Data!.Token);
+                return ApiResponse<RefreshResponse>.ErrorResult(isRefreshTokenValidResult.Message,
+                    isRefreshTokenValidResult.StatusCode);
+            }
+
+            var refreshResponse = new RefreshResponse(newAccessTokenResult.Data!, userResult.Data!.Id);
+            return ApiResponse<RefreshResponse>.SuccessResult(refreshResponse);
         }
         catch (Exception ex)
         {
-            throw new Exception($"Error when Register a User {ex.Message}");
+            logger.LogError(ex, "Error when Refreshing token: {ex.Message}", ex.Message);
+            return ApiResponse<RefreshResponse>.ErrorResult("Error when Refreshing token", 500);
         }
     }
 
-    public async Task<LoginUserResponse> Login(LoginUserRequest request)
+    public async Task<ApiResponse<LoginUserResponse>> Login(LoginUserRequest request)
     {
         try
         {
-            var user = await userService.FindUserByUserName(request.UserName);
+            var user = (await userService.FindUserByUserName(request.UserName)).Data;
             if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
-                throw new UnauthorizedAccessException("Invalid username or password");
+                return ApiResponse<LoginUserResponse>.ErrorResult("Invalid username or password", 401);
 
             tokenService.GenerateAccessToken(user.Id, user.Role);
 
-            var latestRefreshToken = await tokenService.GetRefreshTokenByUserId(user.Id);
+            var latestRefreshToken = (await tokenService.GetRefreshTokenByUserId(user.Id)).Data;
             RefreshToken refreshToken;
 
-            if (latestRefreshToken == null || !await tokenService.ValidateRefreshToken(latestRefreshToken.Token))
+            if (latestRefreshToken == null || !(await tokenService.ValidateRefreshToken(latestRefreshToken.Token)).Data)
             {
                 // Generate a new refresh token if invalid or not present
                 if (latestRefreshToken != null)
                     await tokenService.RevokeRefreshToken(latestRefreshToken.Token);
 
-                refreshToken = await tokenService.GenerateRefreshToken(user.Id);
+                refreshToken = (await tokenService.GenerateRefreshToken(user.Id)).Data!;
             }
             else
             {
@@ -123,33 +145,48 @@ public class AuthService(
             }
 
             SetCookie("jwt", refreshToken.Token);
-            return new LoginUserResponse(refreshToken.Token, user);
+            var loginUserResponse = new LoginUserResponse(refreshToken.Token, user);
+            return ApiResponse<LoginUserResponse>.SuccessResult(loginUserResponse);
         }
         catch (Exception ex)
         {
-            throw new Exception($"Error during user login: {ex.Message}", ex);
+            logger.LogError(ex, "Error when user login: {ex.Message}", ex.Message);
+            return ApiResponse<LoginUserResponse>.ErrorResult("Error when user login", 500);
         }
     }
 
-    public async Task Logout()
+    public async Task<ApiResponse<LogoutUserResponse>> Logout()
     {
         try
         {
             var refreshTokenCookie = _httpContext.Request.Cookies["jwt"];
-
             if (string.IsNullOrWhiteSpace(refreshTokenCookie))
-                throw new Exception("Refresh token is missing");
+                return ApiResponse<LogoutUserResponse>.ErrorResult("Refresh token is missing", 400);
 
-            var isRefreshTokenValid = await tokenService.ValidateRefreshToken(refreshTokenCookie);
-            if (!isRefreshTokenValid) throw new Exception("Invalid or expired refresh token");
+            var refreshToken = (await tokenService.GetRefreshToken(refreshTokenCookie)).Data;
+            if (refreshToken == null)
+                return ApiResponse<LogoutUserResponse>.ErrorResult("Refresh token is missing", 404);
 
-            var refreshToken = await tokenService.GetRefreshToken(refreshTokenCookie);
+            var isRefreshTokenValid = (await tokenService.ValidateRefreshToken(refreshTokenCookie)).Data;
+            if (!isRefreshTokenValid)
+                return ApiResponse<LogoutUserResponse>.ErrorResult("Invalid or expired refresh token", 401);
+
+            var userResult = (await userService.GetUserByIdAsync(refreshToken.UserId)).Data;
+            if (userResult == null)
+                return ApiResponse<LogoutUserResponse>.ErrorResult("User not found", 404);
+
+            var logoutUser = new LogoutUserResponse(refreshToken.Token, userResult.UserName);
+
             await tokenService.RevokeRefreshToken(refreshToken.Token);
+
             ClearCookie("jwt");
+
+            return ApiResponse<LogoutUserResponse>.SuccessResult(logoutUser, 200, "User logged out");
         }
         catch (Exception ex)
         {
-            throw new Exception($"Error during user logout: {ex.Message}", ex);
+            logger.LogError(ex, "Error when user logout: {ex.Message}", ex.Message);
+            return ApiResponse<LogoutUserResponse>.ErrorResult("Error when user logout", 500);
         }
     }
 }
