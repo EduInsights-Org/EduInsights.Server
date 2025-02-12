@@ -139,7 +139,7 @@ public class AuthService(
                 return ApiResponse<LoginUserResponse>.ErrorResult(latestRefreshTokenResult.Message,
                     latestRefreshTokenResult.StatusCode);
 
-            var latestRefreshToken = latestRefreshTokenResult.Data == null
+            var latestRefreshToken = latestRefreshTokenResult.Data is null
                 ? string.Empty
                 : latestRefreshTokenResult.Data.Token;
 
