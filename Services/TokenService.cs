@@ -119,8 +119,10 @@ public class TokenService(IConfiguration configuration, IMongoDatabase database,
                 .SortByDescending(t => t.ExpiryDate)
                 .FirstOrDefaultAsync();
             // return token is null
-            //     ? ApiResponse<RefreshToken>.ErrorResult("Refresh token not found.", 404)
+            //     ? ApiResponse<RefreshToken>.SuccessResult(null)
             //     : ApiResponse<RefreshToken>.SuccessResult(token);
+            // Console.WriteLine("Token", token is null ? 404 : token.Token);
+            // Console.WriteLine("Token", token);
             return ApiResponse<RefreshToken>.SuccessResult(token);
         }
         catch (Exception ex)

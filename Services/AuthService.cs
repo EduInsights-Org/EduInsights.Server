@@ -139,16 +139,20 @@ public class AuthService(
                 return ApiResponse<LoginUserResponse>.ErrorResult(latestRefreshTokenResult.Message,
                     latestRefreshTokenResult.StatusCode);
 
-            var tokenValidationResult = await tokenService.ValidateRefreshToken(latestRefreshTokenResult.Data!.Token);
+            var latestRefreshToken = latestRefreshTokenResult.Data == null
+                ? string.Empty
+                : latestRefreshTokenResult.Data.Token;
+
+            var tokenValidationResult = await tokenService.ValidateRefreshToken(latestRefreshToken);
             if (!tokenValidationResult.Success)
             {
                 return ApiResponse<LoginUserResponse>.ErrorResult(tokenValidationResult.Message,
                     tokenValidationResult.StatusCode);
             }
 
-            if (latestRefreshTokenResult.Data == null || tokenValidationResult.Data == false)
+            if (latestRefreshToken == string.Empty || tokenValidationResult.Data == false)
             {
-                var tokenRevokeResult = await tokenService.RevokeRefreshToken(latestRefreshTokenResult.Data!.Token);
+                var tokenRevokeResult = await tokenService.RevokeRefreshToken(latestRefreshToken);
                 if (!tokenRevokeResult.Success)
                     return ApiResponse<LoginUserResponse>.ErrorResult(tokenRevokeResult.Message,
                         tokenRevokeResult.StatusCode);
