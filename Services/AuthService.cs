@@ -122,30 +122,51 @@ public class AuthService(
     {
         try
         {
-            var user = (await userService.FindUserByUserName(request.UserName)).Data;
-            if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+            var userResult = await userService.FindUserByUserName(request.UserName);
+            if (!userResult.Success)
+                return ApiResponse<LoginUserResponse>.ErrorResult(userResult.Message, userResult.StatusCode);
+
+            if (!BCrypt.Net.BCrypt.Verify(request.Password, userResult.Data!.PasswordHash))
                 return ApiResponse<LoginUserResponse>.ErrorResult("Invalid username or password", 401);
 
-            tokenService.GenerateAccessToken(user.Id, user.Role);
+            var tokenResult = tokenService.GenerateAccessToken(userResult.Data.Id, userResult.Data.Role);
+            if (!tokenResult.Success)
+                return ApiResponse<LoginUserResponse>.ErrorResult(tokenResult.Message, tokenResult.StatusCode);
 
-            var latestRefreshToken = (await tokenService.GetRefreshTokenByUserId(user.Id)).Data;
+            var latestRefreshTokenResult = await tokenService.GetRefreshTokenByUserId(userResult.Data.Id);
             RefreshToken refreshToken;
+            if (!latestRefreshTokenResult.Success)
+                return ApiResponse<LoginUserResponse>.ErrorResult(latestRefreshTokenResult.Message,
+                    latestRefreshTokenResult.StatusCode);
 
-            if (latestRefreshToken == null || !(await tokenService.ValidateRefreshToken(latestRefreshToken.Token)).Data)
+            var tokenValidationResult = await tokenService.ValidateRefreshToken(latestRefreshTokenResult.Data!.Token);
+            if (!tokenValidationResult.Success)
             {
-                // Generate a new refresh token if invalid or not present
-                if (latestRefreshToken != null)
-                    await tokenService.RevokeRefreshToken(latestRefreshToken.Token);
+                return ApiResponse<LoginUserResponse>.ErrorResult(tokenValidationResult.Message,
+                    tokenValidationResult.StatusCode);
+            }
 
-                refreshToken = (await tokenService.GenerateRefreshToken(user.Id)).Data!;
+            if (latestRefreshTokenResult.Data == null || tokenValidationResult.Data == false)
+            {
+                var tokenRevokeResult = await tokenService.RevokeRefreshToken(latestRefreshTokenResult.Data!.Token);
+                if (!tokenRevokeResult.Success)
+                    return ApiResponse<LoginUserResponse>.ErrorResult(tokenRevokeResult.Message,
+                        tokenRevokeResult.StatusCode);
+
+                var newRefreshTokenResult = await tokenService.GenerateRefreshToken(userResult.Data.Id);
+                if (!newRefreshTokenResult.Success)
+                    return ApiResponse<LoginUserResponse>.ErrorResult(newRefreshTokenResult.Message,
+                        newRefreshTokenResult.StatusCode);
+
+                refreshToken = newRefreshTokenResult.Data!;
             }
             else
             {
-                refreshToken = latestRefreshToken;
+                refreshToken = latestRefreshTokenResult.Data!;
             }
 
             SetCookie("jwt", refreshToken.Token);
-            var loginUserResponse = new LoginUserResponse(refreshToken.Token, user);
+            var loginUserResponse = new LoginUserResponse(refreshToken.Token, userResult.Data);
             return ApiResponse<LoginUserResponse>.SuccessResult(loginUserResponse);
         }
         catch (Exception ex)
