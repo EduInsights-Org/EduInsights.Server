@@ -8,12 +8,19 @@
 
     <ItemGroup>
         <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
+        <PackageReference Include="MailKit" Version="4.10.0" />
         <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.0" />
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.0"/>
         <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.3.0" />
         <PackageReference Include="MongoDB.Driver" Version="3.1.0" />
         <PackageReference Include="Scalar.AspNetCore" Version="1.2.74" />
         <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.3.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Content Include="Templates\EmailTemplate.html">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
     </ItemGroup>
 
 </Project>

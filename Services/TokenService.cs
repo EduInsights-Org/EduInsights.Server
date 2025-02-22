@@ -85,7 +85,7 @@ public class TokenService(IConfiguration configuration, IMongoDatabase database,
 
             return result.ModifiedCount > 0
                 ? ApiResponse<string>.SuccessResult("Refresh token successfully revoked.")
-                : ApiResponse<string>.ErrorResult("Refresh token not found or already revoked.", 404);
+                : ApiResponse<string>.SuccessResult("Refresh token not found or already revoked.");
         }
         catch (Exception ex)
         {
@@ -118,9 +118,7 @@ public class TokenService(IConfiguration configuration, IMongoDatabase database,
                 .Find(t => t.UserId == userId)
                 .SortByDescending(t => t.ExpiryDate)
                 .FirstOrDefaultAsync();
-            return token is null
-                ? ApiResponse<RefreshToken>.ErrorResult("Refresh token not found.", 404)
-                : ApiResponse<RefreshToken>.SuccessResult(token);
+            return ApiResponse<RefreshToken>.SuccessResult(token);
         }
         catch (Exception ex)
         {
@@ -134,7 +132,7 @@ public class TokenService(IConfiguration configuration, IMongoDatabase database,
         try
         {
             var storedRefreshToken = (await GetRefreshToken(token)).Data;
-            if (storedRefreshToken is null) return ApiResponse<bool>.ErrorResult("Refresh token not found.", 404);
+            if (storedRefreshToken is null) return ApiResponse<bool>.SuccessResult(false);
 
             var isValid = storedRefreshToken.Token == token
                           && !storedRefreshToken.Revoked

@@ -20,14 +20,13 @@ public class UserService(
             if (string.IsNullOrWhiteSpace(createUser.Password) ||
                 string.IsNullOrWhiteSpace(createUser.FirstName) ||
                 string.IsNullOrWhiteSpace(createUser.LastName) ||
-                string.IsNullOrWhiteSpace(createUser.UserName) ||
                 string.IsNullOrWhiteSpace(createUser.Email))
             {
                 return ApiResponse<User>.ErrorResult("Invalid data found", 400);
             }
 
             var existingUser =
-                await _userCollection.Find(u => u.UserName == createUser.UserName).FirstOrDefaultAsync();
+                await _userCollection.Find(u => u.Email == createUser.Email).FirstOrDefaultAsync();
             if (existingUser != null)
                 return ApiResponse<User>.ErrorResult("User already existed", 400);
 
@@ -35,9 +34,8 @@ public class UserService(
             {
                 FirstName = createUser.FirstName,
                 LastName = createUser.LastName,
-                UserName = createUser.UserName,
                 Email = createUser.Email,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(createUser.UserName),
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(createUser.Email),
                 InstituteId = createUser.InstituteId,
                 Role = createUser.Role,
                 CreatedAt = DateTime.UtcNow,
@@ -84,7 +82,6 @@ public class UserService(
                 if (string.IsNullOrWhiteSpace(request.Password) ||
                     string.IsNullOrWhiteSpace(request.FirstName) ||
                     string.IsNullOrWhiteSpace(request.LastName) ||
-                    string.IsNullOrWhiteSpace(request.UserName) ||
                     string.IsNullOrWhiteSpace(request.Email) ||
                     string.IsNullOrWhiteSpace(request.InstituteId))
                 {
@@ -96,16 +93,15 @@ public class UserService(
 
                     if (request.FirstName.Length > 0) invalidUser = request.FirstName;
                     if (request.Email.Length > 0) invalidUser = request.Email;
-                    if (request.UserName.Length > 0) invalidUser = request.UserName;
                     invalidUsers.Add(invalidUser);
                     continue;
                 }
 
                 var existingUser =
-                    await _userCollection.Find(u => u.UserName == request.UserName).FirstOrDefaultAsync();
+                    await _userCollection.Find(u => u.Email == request.Email).FirstOrDefaultAsync();
                 if (existingUser != null)
                 {
-                    existingUsers.Add(request.UserName);
+                    existingUsers.Add(request.Email);
                     continue;
                 }
 
@@ -113,9 +109,8 @@ public class UserService(
                 {
                     FirstName = request.FirstName,
                     LastName = request.LastName,
-                    UserName = request.UserName,
                     Email = request.Email,
-                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.UserName),
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Email),
                     InstituteId = request.InstituteId,
                     Role = request.Role,
                     CreatedAt = DateTime.UtcNow,
@@ -126,7 +121,7 @@ public class UserService(
             if (usersToInsert.Count > 0)
             {
                 await _userCollection.InsertManyAsync(usersToInsert);
-                successfullyAddedUsers.AddRange(usersToInsert.Select(u => u.UserName));
+                successfullyAddedUsers.AddRange(usersToInsert.Select(u => u.Email));
 
                 var studentsToInsert = (from s in createUsersRequest
                         where s.Role == UserRole.Student
@@ -134,7 +129,7 @@ public class UserService(
                         {
                             IndexNumber = s.IndexNumber!,
                             BatchId = s.BatchId,
-                            UserId = usersToInsert.Find(u => u.UserName == s.UserName)!.Id
+                            UserId = usersToInsert.Find(u => u.Email == s.Email)!.Id
                         })
                     .ToList();
 
@@ -225,7 +220,7 @@ public class UserService(
                     return ApiResponse<PaginatedResponse<List<GetUserWithStudentResponse>>>.ErrorResult(
                         "No students found", 404);
 
-                var userIds = students!.Select(s => s.UserId).ToList();
+                var userIds = students.Select(s => s.UserId).ToList();
                 filter &= Builders<User>.Filter.In(u => u.Id, userIds);
             }
 
@@ -248,12 +243,12 @@ public class UserService(
                 var student = await studentService.GetStudentByUserIdAsync(user.Id);
                 usersWithStudentDetails.Add(new GetUserWithStudentResponse
                 {
-                    UserName = user.UserName,
                     FirstName = user.FirstName,
                     LastName = user.LastName,
                     Email = user.Email,
                     Role = user.Role,
                     Id = user.Id,
+                    IsEmailVerified = user.IsEmailVerified,
                     IndexNumber = student.Data?.IndexNumber,
                 });
             }
@@ -342,11 +337,11 @@ public class UserService(
         }
     }
 
-    public async Task<ApiResponse<User>> FindUserByUserName(string userName)
+    public async Task<ApiResponse<User>> FindUserByUserName(string email)
     {
         try
         {
-            var user = await _userCollection.Find(u => u.UserName == userName).FirstOrDefaultAsync();
+            var user = await _userCollection.Find(u => u.Email == email).FirstOrDefaultAsync();
             return user is null
                 ? ApiResponse<User>.ErrorResult("User not found", 404)
                 : ApiResponse<User>.SuccessResult(user);

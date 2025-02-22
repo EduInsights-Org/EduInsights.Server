@@ -10,6 +10,7 @@ public class AuthService(
     IUserService userService,
     IRefreshService tokenService,
     IInstituteService instituteService,
+    IEmailService emailService,
     IHttpContextAccessor httpContextAccessor,
     ILogger<AuthService> logger) : IAuthService
 {
@@ -39,14 +40,13 @@ public class AuthService(
         {
             if (string.IsNullOrWhiteSpace(request.FirstName)
                 || string.IsNullOrWhiteSpace(request.LastName)
-                || string.IsNullOrWhiteSpace(request.UserName)
                 || string.IsNullOrWhiteSpace(request.Password)
                 || string.IsNullOrWhiteSpace(request.InstituteName)
                ) return ApiResponse<User>.ErrorResult("Validation error.", 422);
 
-            var existingUser = await _userCollection.Find(u => u.UserName == request.UserName).FirstOrDefaultAsync();
+            var existingUser = await _userCollection.Find(u => u.Email == request.Email).FirstOrDefaultAsync();
             if (existingUser != null)
-                return ApiResponse<User>.ErrorResult("Can't add already exists user name.", 409);
+                return ApiResponse<User>.ErrorResult("Can't add already exists user email.", 409);
 
             var hashedPassword = BCrypt.Net.BCrypt.HashPassword(request.Password);
 
@@ -60,13 +60,15 @@ public class AuthService(
             {
                 FirstName = request.FirstName,
                 LastName = request.LastName,
-                UserName = request.UserName,
+                Email = request.Email,
                 InstituteId = institute.Id,
                 Role = request.Role,
                 PasswordHash = hashedPassword,
                 CreatedAt = DateTime.Now
             };
             await _userCollection.InsertOneAsync(user);
+
+            await emailService.SendVerificationCodeAsync(user.Email);
 
             return ApiResponse<User>.SuccessResult(user);
         }
@@ -84,7 +86,7 @@ public class AuthService(
             var refreshTokenCookie = _httpContext.Request.Cookies["jwt"];
 
             if (string.IsNullOrWhiteSpace(refreshTokenCookie))
-                return ApiResponse<RefreshResponse>.ErrorResult("Refresh token is missing", 400);
+                return ApiResponse<RefreshResponse>.ErrorResult("Refresh token is missing", 404);
 
             var refreshTokenResult = await tokenService.GetRefreshToken(refreshTokenCookie);
             if (!refreshTokenResult.Success)
@@ -122,30 +124,55 @@ public class AuthService(
     {
         try
         {
-            var user = (await userService.FindUserByUserName(request.UserName)).Data;
-            if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+            var userResult = await userService.FindUserByUserName(request.Email);
+            if (!userResult.Success)
+                return ApiResponse<LoginUserResponse>.ErrorResult(userResult.Message, userResult.StatusCode);
+
+            if (!BCrypt.Net.BCrypt.Verify(request.Password, userResult.Data!.PasswordHash))
                 return ApiResponse<LoginUserResponse>.ErrorResult("Invalid username or password", 401);
 
-            tokenService.GenerateAccessToken(user.Id, user.Role);
+            var tokenResult = tokenService.GenerateAccessToken(userResult.Data.Id, userResult.Data.Role);
+            if (!tokenResult.Success)
+                return ApiResponse<LoginUserResponse>.ErrorResult(tokenResult.Message, tokenResult.StatusCode);
 
-            var latestRefreshToken = (await tokenService.GetRefreshTokenByUserId(user.Id)).Data;
+            var latestRefreshTokenResult = await tokenService.GetRefreshTokenByUserId(userResult.Data.Id);
             RefreshToken refreshToken;
+            if (!latestRefreshTokenResult.Success)
+                return ApiResponse<LoginUserResponse>.ErrorResult(latestRefreshTokenResult.Message,
+                    latestRefreshTokenResult.StatusCode);
 
-            if (latestRefreshToken == null || !(await tokenService.ValidateRefreshToken(latestRefreshToken.Token)).Data)
+            var latestRefreshToken = latestRefreshTokenResult.Data is null
+                ? string.Empty
+                : latestRefreshTokenResult.Data.Token;
+
+            var tokenValidationResult = await tokenService.ValidateRefreshToken(latestRefreshToken);
+            if (!tokenValidationResult.Success)
             {
-                // Generate a new refresh token if invalid or not present
-                if (latestRefreshToken != null)
-                    await tokenService.RevokeRefreshToken(latestRefreshToken.Token);
+                return ApiResponse<LoginUserResponse>.ErrorResult(tokenValidationResult.Message,
+                    tokenValidationResult.StatusCode);
+            }
 
-                refreshToken = (await tokenService.GenerateRefreshToken(user.Id)).Data!;
+            if (latestRefreshToken == string.Empty || tokenValidationResult.Data == false)
+            {
+                var tokenRevokeResult = await tokenService.RevokeRefreshToken(latestRefreshToken);
+                if (!tokenRevokeResult.Success)
+                    return ApiResponse<LoginUserResponse>.ErrorResult(tokenRevokeResult.Message,
+                        tokenRevokeResult.StatusCode);
+
+                var newRefreshTokenResult = await tokenService.GenerateRefreshToken(userResult.Data.Id);
+                if (!newRefreshTokenResult.Success)
+                    return ApiResponse<LoginUserResponse>.ErrorResult(newRefreshTokenResult.Message,
+                        newRefreshTokenResult.StatusCode);
+
+                refreshToken = newRefreshTokenResult.Data!;
             }
             else
             {
-                refreshToken = latestRefreshToken;
+                refreshToken = latestRefreshTokenResult.Data!;
             }
 
             SetCookie("jwt", refreshToken.Token);
-            var loginUserResponse = new LoginUserResponse(refreshToken.Token, user);
+            var loginUserResponse = new LoginUserResponse(refreshToken.Token, userResult.Data);
             return ApiResponse<LoginUserResponse>.SuccessResult(loginUserResponse);
         }
         catch (Exception ex)
@@ -175,7 +202,7 @@ public class AuthService(
             if (userResult == null)
                 return ApiResponse<LogoutUserResponse>.ErrorResult("User not found", 404);
 
-            var logoutUser = new LogoutUserResponse(refreshToken.Token, userResult.UserName);
+            var logoutUser = new LogoutUserResponse(refreshToken.Token, userResult.Email);
 
             await tokenService.RevokeRefreshToken(refreshToken.Token);
 
