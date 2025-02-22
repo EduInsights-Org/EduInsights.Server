@@ -10,7 +10,9 @@ public static class UsersEndpoints
 
     public static void MapUsersEndPoints(this WebApplication app)
     {
-        var group = app.MapGroup(UserEndpointName).WithTags("EduInsights endpoints").RequireAuthorization();
+        var group = app.MapGroup(UserEndpointName).WithTags("EduInsights endpoints")
+            // .RequireAuthorization()
+            ;
 
         group.MapGet("/{id}", async (string id, [FromServices] IUserService userService) =>
         {

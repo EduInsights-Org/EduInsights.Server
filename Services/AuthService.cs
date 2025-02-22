@@ -10,6 +10,7 @@ public class AuthService(
     IUserService userService,
     IRefreshService tokenService,
     IInstituteService instituteService,
+    IEmailService emailService,
     IHttpContextAccessor httpContextAccessor,
     ILogger<AuthService> logger) : IAuthService
 {
@@ -39,14 +40,13 @@ public class AuthService(
         {
             if (string.IsNullOrWhiteSpace(request.FirstName)
                 || string.IsNullOrWhiteSpace(request.LastName)
-                || string.IsNullOrWhiteSpace(request.UserName)
                 || string.IsNullOrWhiteSpace(request.Password)
                 || string.IsNullOrWhiteSpace(request.InstituteName)
                ) return ApiResponse<User>.ErrorResult("Validation error.", 422);
 
-            var existingUser = await _userCollection.Find(u => u.UserName == request.UserName).FirstOrDefaultAsync();
+            var existingUser = await _userCollection.Find(u => u.Email == request.Email).FirstOrDefaultAsync();
             if (existingUser != null)
-                return ApiResponse<User>.ErrorResult("Can't add already exists user name.", 409);
+                return ApiResponse<User>.ErrorResult("Can't add already exists user email.", 409);
 
             var hashedPassword = BCrypt.Net.BCrypt.HashPassword(request.Password);
 
@@ -60,13 +60,15 @@ public class AuthService(
             {
                 FirstName = request.FirstName,
                 LastName = request.LastName,
-                UserName = request.UserName,
+                Email = request.Email,
                 InstituteId = institute.Id,
                 Role = request.Role,
                 PasswordHash = hashedPassword,
                 CreatedAt = DateTime.Now
             };
             await _userCollection.InsertOneAsync(user);
+
+            await emailService.SendVerificationCodeAsync(user.Email);
 
             return ApiResponse<User>.SuccessResult(user);
         }
@@ -122,7 +124,7 @@ public class AuthService(
     {
         try
         {
-            var userResult = await userService.FindUserByUserName(request.UserName);
+            var userResult = await userService.FindUserByUserName(request.Email);
             if (!userResult.Success)
                 return ApiResponse<LoginUserResponse>.ErrorResult(userResult.Message, userResult.StatusCode);
 
@@ -200,7 +202,7 @@ public class AuthService(
             if (userResult == null)
                 return ApiResponse<LogoutUserResponse>.ErrorResult("User not found", 404);
 
-            var logoutUser = new LogoutUserResponse(refreshToken.Token, userResult.UserName);
+            var logoutUser = new LogoutUserResponse(refreshToken.Token, userResult.Email);
 
             await tokenService.RevokeRefreshToken(refreshToken.Token);
 

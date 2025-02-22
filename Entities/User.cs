@@ -18,12 +18,13 @@ public class User
 
     [BsonElement("last_name")] public string LastName { get; set; } = null!;
 
-    [BsonElement("user_name")] public string UserName { get; set; } = null!;
     [BsonElement("email")] public string Email { get; set; } = null!;
 
     [BsonElement("password_hash")] public string PasswordHash { get; set; } = null!;
 
     [BsonElement("role")] public string Role { get; set; } = "user";
+    
+    [BsonElement("is_email_verified")] public bool IsEmailVerified { get; set; } = false;
 
     [BsonElement("created_at")] public DateTime CreatedAt { get; set; }
 }
