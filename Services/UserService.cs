@@ -225,7 +225,7 @@ public class UserService(
                     return ApiResponse<PaginatedResponse<List<GetUserWithStudentResponse>>>.ErrorResult(
                         "No students found", 404);
 
-                var userIds = students!.Select(s => s.UserId).ToList();
+                var userIds = students.Select(s => s.UserId).ToList();
                 filter &= Builders<User>.Filter.In(u => u.Id, userIds);
             }
 

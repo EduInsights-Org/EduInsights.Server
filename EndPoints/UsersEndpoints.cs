@@ -1,7 +1,6 @@
 using EduInsights.Server.Contracts;
 using EduInsights.Server.Interfaces;
 using Microsoft.AspNetCore.Mvc;
-using MongoDB.Bson;
 
 namespace EduInsights.Server.EndPoints;
 
@@ -11,7 +10,7 @@ public static class UsersEndpoints
 
     public static void MapUsersEndPoints(this WebApplication app)
     {
-        var group = app.MapGroup(UserEndpointName).WithTags("EduInsights endpoints");
+        var group = app.MapGroup(UserEndpointName).WithTags("EduInsights endpoints").RequireAuthorization();
 
         group.MapGet("/{id}", async (string id, [FromServices] IUserService userService) =>
         {

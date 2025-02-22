@@ -84,7 +84,7 @@ public class AuthService(
             var refreshTokenCookie = _httpContext.Request.Cookies["jwt"];
 
             if (string.IsNullOrWhiteSpace(refreshTokenCookie))
-                return ApiResponse<RefreshResponse>.ErrorResult("Refresh token is missing", 400);
+                return ApiResponse<RefreshResponse>.ErrorResult("Refresh token is missing", 404);
 
             var refreshTokenResult = await tokenService.GetRefreshToken(refreshTokenCookie);
             if (!refreshTokenResult.Success)

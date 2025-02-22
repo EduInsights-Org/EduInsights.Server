@@ -25,14 +25,14 @@ public static class ServiceExtensions
                     .AllowCredentials();
             });
         });
-        
+
         //Add mongoDB service
         var mongoDbSettings = configuration.GetSection("EduInsightsDatabase").Get<DatabaseSettings>();
         var mongoClient = new MongoClient(mongoDbSettings!.ConnectionString);
         var database = mongoClient.GetDatabase(mongoDbSettings.DatabaseName);
         builder.Services.AddSingleton<IMongoClient>(mongoClient);
         builder.Services.AddSingleton(database);
-        
+
         //Add JWT service
         var jwtSettings = configuration.GetSection("JwtSettings");
         builder.Services.AddAuthorization();
@@ -58,5 +58,6 @@ public static class ServiceExtensions
         builder.Services.AddScoped<IInstituteService, InstituteService>();
         builder.Services.AddScoped<IBatchService, BatchService>();
         builder.Services.AddScoped<IStudentService, StudentService>();
+        builder.Services.AddScoped<IEmailService, EmailService>();
     }
 }
