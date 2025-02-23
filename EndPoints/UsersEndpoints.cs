@@ -35,6 +35,14 @@ public static class UsersEndpoints
                 return Results.Json(result, statusCode: result.StatusCode);
             });
 
+        group.MapPatch("/{userId}",
+            async (string userId, [FromServices] IUserService userService,
+                [FromBody] UpdateUserRequest updateUserRequest) =>
+            {
+                var result = await userService.UpdateUserAsync(userId, updateUserRequest);
+                return Results.Json(result, statusCode: result.StatusCode);
+            });
+
         group.MapPost("/", async ([FromBody] CreateUserRequest createUser, [FromServices] IUserService userService) =>
         {
             var response = await userService.AddUserAsync(createUser);

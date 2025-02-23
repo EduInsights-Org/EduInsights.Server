@@ -68,9 +68,10 @@ public class AuthService(
             };
             await _userCollection.InsertOneAsync(user);
 
-            await emailService.SendVerificationCodeAsync(user.Email);
-
-            return ApiResponse<User>.SuccessResult(user);
+            var verificationCodeResult = await emailService.SendVerificationCodeAsync(user.Email);
+            return !verificationCodeResult.Success
+                ? ApiResponse<User>.ErrorResult(verificationCodeResult.Message, verificationCodeResult.StatusCode)
+                : ApiResponse<User>.SuccessResult(user);
         }
         catch (Exception ex)
         {
@@ -124,7 +125,7 @@ public class AuthService(
     {
         try
         {
-            var userResult = await userService.FindUserByUserName(request.Email);
+            var userResult = await userService.FindUserByEmail(request.Email);
             if (!userResult.Success)
                 return ApiResponse<LoginUserResponse>.ErrorResult(userResult.Message, userResult.StatusCode);
 

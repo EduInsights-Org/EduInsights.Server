@@ -1,3 +1,4 @@
+using EduInsights.Server.Contracts;
 using EduInsights.Server.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -15,6 +16,13 @@ public static class EmailsEndpoints
             async ([FromServices] IEmailService emailService, [FromQuery] string email) =>
             {
                 var result = await emailService.SendVerificationCodeAsync(email);
+                return Results.Json(result, statusCode: result.StatusCode);
+            });
+
+        group.MapPost("/verify-email",
+            async ([FromServices] IEmailService emailService, [FromBody] VerifyEmailRequest request) =>
+            {
+                var result = await emailService.VerifyEmailAsync(request.Email, request.Code);
                 return Results.Json(result, statusCode: result.StatusCode);
             });
     }

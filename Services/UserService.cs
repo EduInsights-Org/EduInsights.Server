@@ -337,7 +337,7 @@ public class UserService(
         }
     }
 
-    public async Task<ApiResponse<User>> FindUserByUserName(string email)
+    public async Task<ApiResponse<User>> FindUserByEmail(string email)
     {
         try
         {
@@ -350,6 +350,55 @@ public class UserService(
         {
             logger.LogError(ex, "Error when getting user");
             return ApiResponse<User>.ErrorResult("Error when getting user", 500);
+        }
+    }
+
+    public async Task<ApiResponse<UpdateUserResponse>> UpdateUserAsync(string userId,
+        UpdateUserRequest updateUserRequest)
+    {
+        try
+        {
+            var filter = Builders<User>.Filter.Eq(u => u.Id, userId);
+            var updateBuilder = Builders<User>.Update;
+            var updates = new List<UpdateDefinition<User>>();
+
+            if (!string.IsNullOrEmpty(updateUserRequest.FirstName))
+                updates.Add(updateBuilder.Set(u => u.FirstName, updateUserRequest.FirstName));
+
+            if (!string.IsNullOrEmpty(updateUserRequest.LastName))
+                updates.Add(updateBuilder.Set(u => u.LastName, updateUserRequest.LastName));
+
+            if (!string.IsNullOrEmpty(updateUserRequest.Email))
+                updates.Add(updateBuilder.Set(u => u.Email, updateUserRequest.Email));
+
+            if (!string.IsNullOrEmpty(updateUserRequest.Password))
+            {
+                var hashedPassword = BCrypt.Net.BCrypt.HashPassword(updateUserRequest.Password);
+                updates.Add(updateBuilder.Set(u => u.PasswordHash, hashedPassword));
+            }
+
+            if (!string.IsNullOrEmpty(updateUserRequest.Role))
+                updates.Add(updateBuilder.Set(u => u.Role, updateUserRequest.Role));
+
+            if (updateUserRequest.IsEMailVerified.HasValue)
+                updates.Add(updateBuilder.Set(u => u.IsEmailVerified, updateUserRequest.IsEMailVerified.Value));
+
+            if (updateUserRequest.InstituteId != null)
+                updates.Add(updateBuilder.Set(u => u.InstituteId, updateUserRequest.InstituteId));
+
+            var update = updateBuilder.Combine(updates);
+            var result = await _userCollection.UpdateOneAsync(filter, update);
+            var successResponse = new UpdateUserResponse
+            {
+                MatchedCount = result.MatchedCount,
+                ModifiedCount = result.ModifiedCount
+            };
+            return ApiResponse<UpdateUserResponse>.SuccessResult(successResponse);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error when updating user");
+            return ApiResponse<UpdateUserResponse>.ErrorResult("Error when updating user", 500);
         }
     }
 }
