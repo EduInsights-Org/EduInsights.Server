@@ -99,6 +99,10 @@ public class AuthService(
             if (!userResult.Success)
                 return ApiResponse<RefreshResponse>.ErrorResult(userResult.Message, userResult.StatusCode);
 
+            if (!userResult.Data!.IsEmailVerified)
+                return ApiResponse<RefreshResponse>.ErrorResult("Email is not verified.", 403,
+                    ErrorCode.EmailNotVerified);
+
             var newAccessTokenResult = tokenService.GenerateAccessToken(userResult.Data!.Id, userResult.Data!.Role);
             if (!newAccessTokenResult.Success)
                 return ApiResponse<RefreshResponse>.ErrorResult(newAccessTokenResult.Message,
