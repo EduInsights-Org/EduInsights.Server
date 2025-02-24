@@ -1,5 +1,6 @@
 using EduInsights.Server.Contracts;
 using EduInsights.Server.Entities;
+using EduInsights.Server.Enums;
 using EduInsights.Server.Interfaces;
 using MongoDB.Driver;
 
@@ -128,6 +129,11 @@ public class AuthService(
             var userResult = await userService.FindUserByEmail(request.Email);
             if (!userResult.Success)
                 return ApiResponse<LoginUserResponse>.ErrorResult(userResult.Message, userResult.StatusCode);
+
+            if (!userResult.Data!.IsEmailVerified)
+                return ApiResponse<LoginUserResponse>.ErrorResult(
+                    "Email is not verified. Please verify your email before logging in.", 403,
+                    ErrorCode.EmailNotVerified);
 
             if (!BCrypt.Net.BCrypt.Verify(request.Password, userResult.Data!.PasswordHash))
                 return ApiResponse<LoginUserResponse>.ErrorResult("Invalid username or password", 401);

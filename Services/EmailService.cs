@@ -1,4 +1,5 @@
 using EduInsights.Server.Contracts;
+using EduInsights.Server.Enums;
 using EduInsights.Server.Interfaces;
 
 namespace EduInsights.Server.Services;
@@ -35,7 +36,7 @@ public class EmailService(
                 return ApiResponse<string>.ErrorResult("Stored Verification code does not exist.", 404);
 
             if (!BCrypt.Net.BCrypt.Verify(verificationCode, storedHashedCode))
-                return ApiResponse<string>.ErrorResult("Invalid verification code.", 400);
+                return ApiResponse<string>.ErrorResult("Invalid verification code.", 400, ErrorCode.InvalidCredentials);
 
             var userResult = await userService.FindUserByEmail(email);
             if (!userResult.Success) return ApiResponse<string>.ErrorResult(userResult.Message, userResult.StatusCode);
