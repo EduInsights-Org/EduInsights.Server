@@ -132,7 +132,7 @@ public class AuthService(
 
             if (!userResult.Data!.IsEmailVerified)
                 return ApiResponse<LoginUserResponse>.ErrorResult(
-                    "Email is not verified. Please verify your email before logging in.", 403,
+                    "Email is not verified.", 403,
                     ErrorCode.EmailNotVerified);
 
             if (!BCrypt.Net.BCrypt.Verify(request.Password, userResult.Data!.PasswordHash))
