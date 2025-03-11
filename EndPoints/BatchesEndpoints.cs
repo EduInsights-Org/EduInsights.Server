@@ -1,6 +1,5 @@
 using EduInsights.Server.Contracts;
 using EduInsights.Server.Interfaces;
-using Microsoft.AspNetCore.Mvc;
 
 namespace EduInsights.Server.EndPoints;
 
@@ -12,19 +11,19 @@ public static class BatchesEndpoints
     {
         var group = app.MapGroup(BatchesEndpointsName).WithTags("EduInsights endpoints");
 
-        group.MapGet("/{instituteId}", async (string instituteId, [FromServices] IBatchService batchService) =>
+        group.MapGet("/{instituteId}", async (string instituteId, IBatchService batchService) =>
         {
             var result = await batchService.GetBatchesByInstituteIdAsync(instituteId);
             return Results.Json(result, statusCode: result.StatusCode);
         });
 
-        group.MapGet("/", async ([FromServices] IBatchService batchService) =>
+        group.MapGet("/", async (IBatchService batchService) =>
         {
             var result = await batchService.GetAllBatches();
             return Results.Json(result, statusCode: result.StatusCode);
         });
 
-        group.MapPost("/", async ([FromBody] CreateBatchRequest request, [FromServices] IBatchService batchService) =>
+        group.MapPost("/", async (CreateBatchRequest request, IBatchService batchService) =>
         {
             var result = await batchService.AddBatchAsync(request);
             return Results.Json(result, statusCode: result.StatusCode);

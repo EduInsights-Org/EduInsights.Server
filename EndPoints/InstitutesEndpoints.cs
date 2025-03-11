@@ -1,5 +1,4 @@
 using EduInsights.Server.Interfaces;
-using Microsoft.AspNetCore.Mvc;
 
 namespace EduInsights.Server.EndPoints;
 
@@ -11,13 +10,13 @@ public static class InstitutesEndpoints
     {
         var group = app.MapGroup(InstituteEndpointName).WithTags("EduInsights endpoints");
 
-        group.MapGet("/", async ([FromServices] IInstituteService instituteService) =>
+        group.MapGet("/", async (IInstituteService instituteService) =>
         {
             var result = await instituteService.GetAllInstitutes();
             return Results.Json(result, statusCode: result.StatusCode);
         });
 
-        group.MapGet("/{userId}", async (string userId, [FromServices] IInstituteService instituteService) =>
+        group.MapGet("/{userId}", async (string userId, IInstituteService instituteService) =>
         {
             var result = await instituteService.GetInstituteByUserIdAsync(userId);
             return Results.Json(result, statusCode: result.StatusCode);
