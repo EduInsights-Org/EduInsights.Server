@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using EduInsights.Server.Contracts;
 using EduInsights.Server.Entities;
+using EduInsights.Server.Enums;
 using EduInsights.Server.Interfaces;
 using Microsoft.IdentityModel.Tokens;
 using MongoDB.Driver;
@@ -43,13 +44,13 @@ public class TokenService(IConfiguration configuration, IMongoDatabase database,
 
             var writeToken = new JwtSecurityTokenHandler().WriteToken(token);
             return writeToken is null
-                ? ApiResponse<string>.ErrorResult("Error when writing Access token", 500)
+                ? ApiResponse<string>.ErrorResult("Error when writing Access token", HttpStatusCode.InternalServerError)
                 : ApiResponse<string>.SuccessResult(writeToken);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error when generating Access token: {ex.Message}", ex.Message);
-            return ApiResponse<string>.ErrorResult("Error when generating Access token", 500);
+            return ApiResponse<string>.ErrorResult("Error when generating Access token", HttpStatusCode.InternalServerError);
         }
     }
 
@@ -71,7 +72,7 @@ public class TokenService(IConfiguration configuration, IMongoDatabase database,
         catch (Exception ex)
         {
             logger.LogError(ex, "Error when generating the refresh token: {UserId}", userId);
-            return ApiResponse<RefreshToken>.ErrorResult("Error when generating the refresh token.", 500);
+            return ApiResponse<RefreshToken>.ErrorResult("Error when generating the refresh token.", HttpStatusCode.InternalServerError);
         }
     }
 
@@ -90,7 +91,7 @@ public class TokenService(IConfiguration configuration, IMongoDatabase database,
         catch (Exception ex)
         {
             logger.LogError(ex, "Error when revoking refresh token: {Token}", token);
-            return ApiResponse<string>.ErrorResult("Error when revoking the refresh token.", 500);
+            return ApiResponse<string>.ErrorResult("Error when revoking the refresh token.", HttpStatusCode.InternalServerError);
         }
     }
 
@@ -100,13 +101,13 @@ public class TokenService(IConfiguration configuration, IMongoDatabase database,
         {
             var refreshToken = await _refreshTokenCollection.Find(rt => rt.Token == token).FirstOrDefaultAsync();
             return refreshToken is null
-                ? ApiResponse<RefreshToken>.ErrorResult("Refresh token not found.", 404)
+                ? ApiResponse<RefreshToken>.ErrorResult("Refresh token not found.", HttpStatusCode.NotFound)
                 : ApiResponse<RefreshToken>.SuccessResult(refreshToken);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error when retrieving refresh token: {Token}", token);
-            return ApiResponse<RefreshToken>.ErrorResult("Error when retrieving the refresh token.", 500);
+            return ApiResponse<RefreshToken>.ErrorResult("Error when retrieving the refresh token.", HttpStatusCode.InternalServerError);
         }
     }
 
@@ -123,7 +124,7 @@ public class TokenService(IConfiguration configuration, IMongoDatabase database,
         catch (Exception ex)
         {
             logger.LogError(ex, "Error when retrieving refresh token: {userId}", userId);
-            return ApiResponse<RefreshToken>.ErrorResult("Error when retrieving the refresh token.", 500);
+            return ApiResponse<RefreshToken>.ErrorResult("Error when retrieving the refresh token.", HttpStatusCode.InternalServerError);
         }
     }
 
@@ -142,7 +143,7 @@ public class TokenService(IConfiguration configuration, IMongoDatabase database,
         catch (Exception ex)
         {
             logger.LogError(ex, "Error when validating refresh token: {Token}", token);
-            return ApiResponse<bool>.ErrorResult("Error when validating the refresh token.", 500);
+            return ApiResponse<bool>.ErrorResult("Error when validating the refresh token.", HttpStatusCode.InternalServerError);
         }
     }
 }

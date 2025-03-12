@@ -26,17 +26,17 @@ public class EmailService(
         try
         {
             if (string.IsNullOrWhiteSpace(email))
-                return ApiResponse<string>.ErrorResult("Email code does not exist.", 404);
+                return ApiResponse<string>.ErrorResult("Email code does not exist.", HttpStatusCode.NotFound);
 
             if (string.IsNullOrWhiteSpace(verificationCode))
-                return ApiResponse<string>.ErrorResult("Verification code does not exist.", 404);
+                return ApiResponse<string>.ErrorResult("Verification code does not exist.", HttpStatusCode.NotFound);
 
             var storedHashedCode = await redisService.GetAsync(email);
             if (storedHashedCode == null)
-                return ApiResponse<string>.ErrorResult("Stored Verification code does not exist.", 404);
+                return ApiResponse<string>.ErrorResult("Stored Verification code does not exist.", HttpStatusCode.NotFound);
 
             if (!BCrypt.Net.BCrypt.Verify(verificationCode, storedHashedCode))
-                return ApiResponse<string>.ErrorResult("Invalid verification code.", 400, ErrorCode.InvalidCredentials);
+                return ApiResponse<string>.ErrorResult("Invalid verification code.", HttpStatusCode.BadRequest, ErrorCode.InvalidCredentials);
 
             var userResult = await userService.FindUserByEmail(email);
             if (!userResult.Success) return ApiResponse<string>.ErrorResult(userResult.Message, userResult.StatusCode);
@@ -57,12 +57,12 @@ public class EmailService(
                 throw new Exception();
             }
 
-            return ApiResponse<string>.SuccessResult(null!, 200, "Email verified successfully.");
+            return ApiResponse<string>.SuccessResult(null!, HttpStatusCode.Ok, "Email verified successfully.");
         }
         catch (Exception ex)
         {
             logger.LogError("Error when verifying Email: {ex.ex}", ex.Message);
-            return ApiResponse<string>.ErrorResult("Error when verifying Email", 500);
+            return ApiResponse<string>.ErrorResult("Error when verifying Email", HttpStatusCode.InternalServerError);
         }
     }
 
@@ -84,7 +84,7 @@ public class EmailService(
         if (!File.Exists(templatePath))
         {
             logger.LogError("Template file not found at: {templatePath}", templatePath);
-            return ApiResponse<string>.ErrorResult($"Template file not found", 404);
+            return ApiResponse<string>.ErrorResult($"Template file not found", HttpStatusCode.NotFound);
         }
 
         var htmlBody = await File.ReadAllTextAsync(templatePath);
@@ -114,13 +114,13 @@ public class EmailService(
             var hashedCode = BCrypt.Net.BCrypt.HashPassword(verificationCode);
             var redisSetResult = await redisService.SetAsync(toEmail, hashedCode, expiry);
             return !redisSetResult
-                ? ApiResponse<string>.ErrorResult("Error when caching the verification code", 500)
-                : ApiResponse<string>.SuccessResult(null!, 200, "Verification code sent successfully.");
+                ? ApiResponse<string>.ErrorResult("Error when caching the verification code", HttpStatusCode.InternalServerError)
+                : ApiResponse<string>.SuccessResult(null!, HttpStatusCode.Ok, "Verification code sent successfully.");
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error when sending Verification code email: {ex.Message}", ex.Message);
-            return ApiResponse<string>.ErrorResult("Error when sending Verification code email", 500);
+            return ApiResponse<string>.ErrorResult("Error when sending Verification code email", HttpStatusCode.InternalServerError);
         }
     }
 }

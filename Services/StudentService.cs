@@ -1,5 +1,6 @@
 using EduInsights.Server.Contracts;
 using EduInsights.Server.Entities;
+using EduInsights.Server.Enums;
 using EduInsights.Server.Interfaces;
 using MongoDB.Driver;
 
@@ -19,7 +20,7 @@ public class StudentService(IMongoDatabase database, ILogger<StudentService> log
         catch (Exception ex)
         {
             logger.LogError(ex, "Error when adding students: {ex.Message}", ex.Message);
-            return ApiResponse<string>.ErrorResult("Error when adding students", 500);
+            return ApiResponse<string>.ErrorResult("Error when adding students", HttpStatusCode.InternalServerError);
         }
     }
 
@@ -33,7 +34,7 @@ public class StudentService(IMongoDatabase database, ILogger<StudentService> log
         catch (Exception ex)
         {
             logger.LogError(ex, "Error when adding students: {ex.Message}", ex.Message);
-            return ApiResponse<string>.ErrorResult("Error when adding students", 500);
+            return ApiResponse<string>.ErrorResult("Error when adding students", HttpStatusCode.InternalServerError);
         }
     }
 
@@ -44,13 +45,13 @@ public class StudentService(IMongoDatabase database, ILogger<StudentService> log
         {
             var students = await _studentsCollection.Find(_ => true).ToListAsync();
             return students is null
-                ? ApiResponse<List<Student>>.ErrorResult("No students found", 404)
+                ? ApiResponse<List<Student>>.ErrorResult("No students found", HttpStatusCode.NotFound)
                 : ApiResponse<List<Student>>.SuccessResult(students);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error when fetching Students: {ex.Message}", ex.Message);
-            return ApiResponse<List<Student>>.ErrorResult("Error when fetching Students", 500);
+            return ApiResponse<List<Student>>.ErrorResult("Error when fetching Students", HttpStatusCode.InternalServerError);
         }
     }
     
@@ -61,13 +62,13 @@ public class StudentService(IMongoDatabase database, ILogger<StudentService> log
         {
             var students = await _studentsCollection.Find(filter).ToListAsync();
             return students is null
-                ? ApiResponse<List<Student>>.ErrorResult("No students found", 404)
+                ? ApiResponse<List<Student>>.ErrorResult("No students found", HttpStatusCode.NotFound)
                 : ApiResponse<List<Student>>.SuccessResult(students);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error when fetching Students: {ex.Message}", ex.Message);
-            return ApiResponse<List<Student>>.ErrorResult("Error when fetching Students", 500);
+            return ApiResponse<List<Student>>.ErrorResult("Error when fetching Students", HttpStatusCode.InternalServerError);
         }
     }
 
@@ -78,13 +79,13 @@ public class StudentService(IMongoDatabase database, ILogger<StudentService> log
             var student = await _studentsCollection.Find(s => s.UserId == userId).FirstOrDefaultAsync();
             
             return student is null
-                ? ApiResponse<Student>.ErrorResult("No students found", 404)
+                ? ApiResponse<Student>.ErrorResult("No students found", HttpStatusCode.NotFound)
                 : ApiResponse<Student>.SuccessResult(student);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error when fetching Students: {ex.Message}", ex.Message);
-            return ApiResponse<Student>.ErrorResult("Error when fetching Students", 500);
+            return ApiResponse<Student>.ErrorResult("Error when fetching Students", HttpStatusCode.InternalServerError);
         }
     }
 }

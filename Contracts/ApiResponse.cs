@@ -10,7 +10,7 @@ namespace EduInsights.Server.Contracts
         public int StatusCode { get; set; }
         public ErrorCode? ErrorCode { get; set; }
 
-        public static ApiResponse<T> SuccessResult(T data, int statusCode = 200, string message = "Success")
+        public static ApiResponse<T> SuccessResult(T data, int statusCode = HttpStatusCode.Ok, string message = "Success")
         {
             return new ApiResponse<T> { Success = true, Data = data, StatusCode = statusCode, Message = message };
         }

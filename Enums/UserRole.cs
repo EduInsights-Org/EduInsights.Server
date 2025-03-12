@@ -1,3 +1,5 @@
+namespace EduInsights.Server.Enums;
+
 public static class UserRole
 {
     public const string SuperAdmin = "SUPER_ADMIN";
