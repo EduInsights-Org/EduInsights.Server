@@ -1,6 +1,6 @@
 namespace EduInsights.Server.Contracts;
 
-public class UpdateUserRequest
+public record UpdateUserRequest
 {
     public string? FirstName { get; set; }
     public string? LastName { get; set; }

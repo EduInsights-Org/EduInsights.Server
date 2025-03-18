@@ -262,13 +262,13 @@ public class UserService(
                 .Take(pageSize)
                 .ToList();
 
-            var paginatedResponse = new PaginatedResponse<List<GetUserWithStudentResponse>>(
-                Data: usersWithStudentDetails,
-                TotalRecords: totalRecords,
-                CurrentPage: page,
-                PageSize: pageSize
-            );
-
+            var paginatedResponse = new PaginatedResponse<List<GetUserWithStudentResponse>>
+            {
+                Data = usersWithStudentDetails,
+                TotalRecords = totalRecords,
+                CurrentPage = page,
+                PageSize = pageSize
+            };
             return ApiResponse<PaginatedResponse<List<GetUserWithStudentResponse>>>.SuccessResult(paginatedResponse);
         }
         catch (FormatException ex)

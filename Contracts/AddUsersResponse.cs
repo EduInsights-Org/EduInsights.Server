@@ -1,6 +1,6 @@
 namespace EduInsights.Server.Contracts;
 
-public class AddUsersResponse
+public record AddUsersResponse
 {
     public bool Success { get; set; }
     public List<string> AddedUsers { get; set; } = [];

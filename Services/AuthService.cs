@@ -117,7 +117,11 @@ public class AuthService(
                     isRefreshTokenValidResult.StatusCode);
             }
 
-            var refreshResponse = new RefreshResponse(newAccessTokenResult.Data!, userResult.Data!.Id);
+            var refreshResponse = new RefreshResponse
+            {
+                AccessToken = newAccessTokenResult.Data!,
+                UserId = userResult.Data!.Id,
+            };
             return ApiResponse<RefreshResponse>.SuccessResult(refreshResponse);
         }
         catch (Exception ex)
@@ -186,7 +190,11 @@ public class AuthService(
             }
 
             SetCookie("jwt", refreshToken.Token);
-            var loginUserResponse = new LoginUserResponse(refreshToken.Token, userResult.Data);
+            var loginUserResponse = new LoginUserResponse
+            {
+                RefreshToken = refreshToken.Token,
+                UserInfo = userResult.Data,
+            };
             return ApiResponse<LoginUserResponse>.SuccessResult(loginUserResponse);
         }
         catch (Exception ex)
@@ -219,8 +227,11 @@ public class AuthService(
             if (userResult == null)
                 return ApiResponse<LogoutUserResponse>.ErrorResult("User not found", HttpStatusCode.NotFound);
 
-            var logoutUser = new LogoutUserResponse(refreshToken.Token, userResult.Email);
-
+            var logoutUser = new LogoutUserResponse
+            {
+                RefreshToken = refreshToken.Token,
+                UserName = userResult.Email,
+            };
             await tokenService.RevokeRefreshToken(refreshToken.Token);
 
             ClearCookie("jwt");
