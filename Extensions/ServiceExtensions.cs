@@ -5,6 +5,7 @@ using EduInsights.Server.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using MongoDB.Driver;
+using StackExchange.Redis;
 
 namespace EduInsights.Server.Extensions;
 
@@ -50,6 +51,14 @@ public static class ServiceExtensions
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Key"]!))
                 };
             });
+
+        // Add Redis service
+        builder.Services.AddSingleton<IConnectionMultiplexer>(provider =>
+        {
+            var redisConnectionString = configuration["Redis:ConnectionString"];
+            return ConnectionMultiplexer.Connect(redisConnectionString!);
+        });
+        builder.Services.AddScoped<IRedisService, RedisService>();
 
         //Other services
         builder.Services.AddScoped<IUserService, UserService>();

@@ -1,7 +1,7 @@
 namespace EduInsights.Server.Contracts;
 
-public class VerificationCode
+public record VerifyEmailRequest
 {
     public required string Code { get; set; }
-    public DateTime ExpiresAt { get; set; }
+    public required string Email { get; set; }
 }

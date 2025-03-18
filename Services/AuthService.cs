@@ -1,5 +1,6 @@
 using EduInsights.Server.Contracts;
 using EduInsights.Server.Entities;
+using EduInsights.Server.Enums;
 using EduInsights.Server.Interfaces;
 using MongoDB.Driver;
 
@@ -42,11 +43,11 @@ public class AuthService(
                 || string.IsNullOrWhiteSpace(request.LastName)
                 || string.IsNullOrWhiteSpace(request.Password)
                 || string.IsNullOrWhiteSpace(request.InstituteName)
-               ) return ApiResponse<User>.ErrorResult("Validation error.", 422);
+               ) return ApiResponse<User>.ErrorResult("Validation error.", HttpStatusCode.Ok);
 
             var existingUser = await _userCollection.Find(u => u.Email == request.Email).FirstOrDefaultAsync();
             if (existingUser != null)
-                return ApiResponse<User>.ErrorResult("Can't add already exists user email.", 409);
+                return ApiResponse<User>.ErrorResult("Can't add already exists user email.", HttpStatusCode.Conflict);
 
             var hashedPassword = BCrypt.Net.BCrypt.HashPassword(request.Password);
 
@@ -68,14 +69,16 @@ public class AuthService(
             };
             await _userCollection.InsertOneAsync(user);
 
-            await emailService.SendVerificationCodeAsync(user.Email);
-
-            return ApiResponse<User>.SuccessResult(user);
+            var verificationCodeResult = await emailService.SendVerificationCodeAsync(user.Email);
+            return !verificationCodeResult.Success
+                ? ApiResponse<User>.ErrorResult(verificationCodeResult.Message, verificationCodeResult.StatusCode)
+                : ApiResponse<User>.SuccessResult(user);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error occurred while creating user.");
-            return ApiResponse<User>.ErrorResult("Error occurred while creating user.", 500);
+            return ApiResponse<User>.ErrorResult("Error occurred while creating user.",
+                HttpStatusCode.InternalServerError);
         }
     }
 
@@ -86,7 +89,7 @@ public class AuthService(
             var refreshTokenCookie = _httpContext.Request.Cookies["jwt"];
 
             if (string.IsNullOrWhiteSpace(refreshTokenCookie))
-                return ApiResponse<RefreshResponse>.ErrorResult("Refresh token is missing", 404);
+                return ApiResponse<RefreshResponse>.ErrorResult("Refresh token is missing", HttpStatusCode.NotFound);
 
             var refreshTokenResult = await tokenService.GetRefreshToken(refreshTokenCookie);
             if (!refreshTokenResult.Success)
@@ -96,6 +99,10 @@ public class AuthService(
             var userResult = await userService.GetUserByIdAsync(refreshTokenResult.Data!.UserId);
             if (!userResult.Success)
                 return ApiResponse<RefreshResponse>.ErrorResult(userResult.Message, userResult.StatusCode);
+
+            if (!userResult.Data!.IsEmailVerified)
+                return ApiResponse<RefreshResponse>.ErrorResult("Email is not verified.", HttpStatusCode.Forbidden,
+                    ErrorCode.EmailNotVerified);
 
             var newAccessTokenResult = tokenService.GenerateAccessToken(userResult.Data!.Id, userResult.Data!.Role);
             if (!newAccessTokenResult.Success)
@@ -110,13 +117,18 @@ public class AuthService(
                     isRefreshTokenValidResult.StatusCode);
             }
 
-            var refreshResponse = new RefreshResponse(newAccessTokenResult.Data!, userResult.Data!.Id);
+            var refreshResponse = new RefreshResponse
+            {
+                AccessToken = newAccessTokenResult.Data!,
+                UserId = userResult.Data!.Id,
+            };
             return ApiResponse<RefreshResponse>.SuccessResult(refreshResponse);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error when Refreshing token: {ex.Message}", ex.Message);
-            return ApiResponse<RefreshResponse>.ErrorResult("Error when Refreshing token", 500);
+            return ApiResponse<RefreshResponse>.ErrorResult("Error when Refreshing token",
+                HttpStatusCode.InternalServerError);
         }
     }
 
@@ -124,12 +136,18 @@ public class AuthService(
     {
         try
         {
-            var userResult = await userService.FindUserByUserName(request.Email);
+            var userResult = await userService.FindUserByEmail(request.Email);
             if (!userResult.Success)
                 return ApiResponse<LoginUserResponse>.ErrorResult(userResult.Message, userResult.StatusCode);
 
+            if (!userResult.Data!.IsEmailVerified)
+                return ApiResponse<LoginUserResponse>.ErrorResult(
+                    "Email is not verified.", HttpStatusCode.Forbidden,
+                    ErrorCode.EmailNotVerified);
+
             if (!BCrypt.Net.BCrypt.Verify(request.Password, userResult.Data!.PasswordHash))
-                return ApiResponse<LoginUserResponse>.ErrorResult("Invalid username or password", 401);
+                return ApiResponse<LoginUserResponse>.ErrorResult("Invalid username or password",
+                    HttpStatusCode.Unauthorized);
 
             var tokenResult = tokenService.GenerateAccessToken(userResult.Data.Id, userResult.Data.Role);
             if (!tokenResult.Success)
@@ -172,13 +190,18 @@ public class AuthService(
             }
 
             SetCookie("jwt", refreshToken.Token);
-            var loginUserResponse = new LoginUserResponse(refreshToken.Token, userResult.Data);
+            var loginUserResponse = new LoginUserResponse
+            {
+                RefreshToken = refreshToken.Token,
+                UserInfo = userResult.Data,
+            };
             return ApiResponse<LoginUserResponse>.SuccessResult(loginUserResponse);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error when user login: {ex.Message}", ex.Message);
-            return ApiResponse<LoginUserResponse>.ErrorResult("Error when user login", 500);
+            return ApiResponse<LoginUserResponse>.ErrorResult("Error when user login",
+                HttpStatusCode.InternalServerError);
         }
     }
 
@@ -188,32 +211,38 @@ public class AuthService(
         {
             var refreshTokenCookie = _httpContext.Request.Cookies["jwt"];
             if (string.IsNullOrWhiteSpace(refreshTokenCookie))
-                return ApiResponse<LogoutUserResponse>.ErrorResult("Refresh token is missing", 400);
+                return ApiResponse<LogoutUserResponse>.ErrorResult("Refresh token is missing",
+                    HttpStatusCode.BadRequest);
 
             var refreshToken = (await tokenService.GetRefreshToken(refreshTokenCookie)).Data;
             if (refreshToken == null)
-                return ApiResponse<LogoutUserResponse>.ErrorResult("Refresh token is missing", 404);
+                return ApiResponse<LogoutUserResponse>.ErrorResult("Refresh token is missing", HttpStatusCode.NotFound);
 
             var isRefreshTokenValid = (await tokenService.ValidateRefreshToken(refreshTokenCookie)).Data;
             if (!isRefreshTokenValid)
-                return ApiResponse<LogoutUserResponse>.ErrorResult("Invalid or expired refresh token", 401);
+                return ApiResponse<LogoutUserResponse>.ErrorResult("Invalid or expired refresh token",
+                    HttpStatusCode.Unauthorized);
 
             var userResult = (await userService.GetUserByIdAsync(refreshToken.UserId)).Data;
             if (userResult == null)
-                return ApiResponse<LogoutUserResponse>.ErrorResult("User not found", 404);
+                return ApiResponse<LogoutUserResponse>.ErrorResult("User not found", HttpStatusCode.NotFound);
 
-            var logoutUser = new LogoutUserResponse(refreshToken.Token, userResult.Email);
-
+            var logoutUser = new LogoutUserResponse
+            {
+                RefreshToken = refreshToken.Token,
+                UserName = userResult.Email,
+            };
             await tokenService.RevokeRefreshToken(refreshToken.Token);
 
             ClearCookie("jwt");
 
-            return ApiResponse<LogoutUserResponse>.SuccessResult(logoutUser, 200, "User logged out");
+            return ApiResponse<LogoutUserResponse>.SuccessResult(logoutUser, HttpStatusCode.Ok, "User logged out");
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error when user logout: {ex.Message}", ex.Message);
-            return ApiResponse<LogoutUserResponse>.ErrorResult("Error when user logout", 500);
+            return ApiResponse<LogoutUserResponse>.ErrorResult("Error when user logout",
+                HttpStatusCode.InternalServerError);
         }
     }
 }

@@ -6,6 +6,7 @@ namespace EduInsights.Server.Interfaces;
 public interface IUserService
 {
     Task<ApiResponse<User>> AddUserAsync(CreateUserRequest createUserRequest);
+    Task<ApiResponse<UpdateUserResponse>> UpdateUserAsync(string userId, UpdateUserRequest createUserRequest);
     Task<ApiResponse<AddUsersResponse>> AddUsersAndStudentsAsync(CreateUserRequest[] createUsersRequest);
     Task<ApiResponse<User>> GetUserByIdAsync(string id);
 
@@ -16,5 +17,5 @@ public interface IUserService
     Task<ApiResponse<PaginatedResponse<List<GetUserWithStudentResponse>>>> GetUsers(
         string? instituteId, string? batchId, int page, int pageSize);
 
-    Task<ApiResponse<User>> FindUserByUserName(string userName);
+    Task<ApiResponse<User>> FindUserByEmail(string email);
 }

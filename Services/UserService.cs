@@ -1,5 +1,6 @@
 using EduInsights.Server.Contracts;
 using EduInsights.Server.Entities;
+using EduInsights.Server.Enums;
 using EduInsights.Server.Interfaces;
 using MongoDB.Driver;
 
@@ -22,13 +23,13 @@ public class UserService(
                 string.IsNullOrWhiteSpace(createUser.LastName) ||
                 string.IsNullOrWhiteSpace(createUser.Email))
             {
-                return ApiResponse<User>.ErrorResult("Invalid data found", 400);
+                return ApiResponse<User>.ErrorResult("Invalid data found", HttpStatusCode.BadRequest);
             }
 
             var existingUser =
                 await _userCollection.Find(u => u.Email == createUser.Email).FirstOrDefaultAsync();
             if (existingUser != null)
-                return ApiResponse<User>.ErrorResult("User already existed", 400);
+                return ApiResponse<User>.ErrorResult("User already existed", HttpStatusCode.BadRequest);
 
             var user = new User
             {
@@ -47,7 +48,7 @@ public class UserService(
                 string.IsNullOrWhiteSpace(createUser.BatchId) ||
                 string.IsNullOrWhiteSpace(createUser.InstituteId))
             {
-                return ApiResponse<User>.ErrorResult("Invalid data found", 400);
+                return ApiResponse<User>.ErrorResult("Invalid data found", HttpStatusCode.BadRequest);
             }
 
             var student = new Student
@@ -58,13 +59,13 @@ public class UserService(
             };
             var addStudentResult = await studentService.AddStudentAsync(student);
             return !addStudentResult.Success
-                ? ApiResponse<User>.ErrorResult("Error when adding students", 500)
-                : ApiResponse<User>.SuccessResult(user, 200, "User added successfully");
+                ? ApiResponse<User>.ErrorResult("Error when adding students", HttpStatusCode.InternalServerError)
+                : ApiResponse<User>.SuccessResult(user, HttpStatusCode.Ok, "User added successfully");
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error when Adding user");
-            return ApiResponse<User>.ErrorResult("Error when Adding user", 500);
+            return ApiResponse<User>.ErrorResult("Error when Adding user", HttpStatusCode.InternalServerError);
         }
     }
 
@@ -139,7 +140,8 @@ public class UserService(
                 {
                     var addUsersResult = await studentService.AddStudentsAsync(studentsToInsert);
                     if (!addUsersResult.Success)
-                        return ApiResponse<AddUsersResponse>.ErrorResult("Error when adding students", 500);
+                        return ApiResponse<AddUsersResponse>.ErrorResult("Error when adding students",
+                            HttpStatusCode.InternalServerError);
                 }
             }
 
@@ -157,7 +159,8 @@ public class UserService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Error when Adding users");
-            return ApiResponse<AddUsersResponse>.ErrorResult("Error when adding users", 500);
+            return ApiResponse<AddUsersResponse>.ErrorResult("Error when adding users",
+                HttpStatusCode.InternalServerError);
         }
     }
 
@@ -167,13 +170,13 @@ public class UserService(
         {
             var user = await _userCollection.Find(u => u.Id == id).FirstOrDefaultAsync();
             return user is null
-                ? ApiResponse<User>.ErrorResult("User not found", 404)
+                ? ApiResponse<User>.ErrorResult("User not found", HttpStatusCode.NotFound)
                 : ApiResponse<User>.SuccessResult(user);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error when getting user");
-            return ApiResponse<User>.ErrorResult("Error when getting user", 500);
+            return ApiResponse<User>.ErrorResult("Error when getting user", HttpStatusCode.InternalServerError);
         }
     }
 
@@ -183,13 +186,13 @@ public class UserService(
         {
             var users = await _userCollection.Find(_ => true).ToListAsync();
             return users is null
-                ? ApiResponse<List<User>>.ErrorResult("Users not found", 404)
+                ? ApiResponse<List<User>>.ErrorResult("Users not found", HttpStatusCode.NotFound)
                 : ApiResponse<List<User>>.SuccessResult(users);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error when getting users");
-            return ApiResponse<List<User>>.ErrorResult("Error when getting users", 500);
+            return ApiResponse<List<User>>.ErrorResult("Error when getting users", HttpStatusCode.InternalServerError);
         }
     }
 
@@ -201,7 +204,7 @@ public class UserService(
             if (!string.IsNullOrEmpty(batchId) && string.IsNullOrEmpty(instituteId))
             {
                 return ApiResponse<PaginatedResponse<List<GetUserWithStudentResponse>>>.ErrorResult(
-                    "Institute ID must be provided when filtering by Batch ID", 400);
+                    "Institute ID must be provided when filtering by Batch ID", HttpStatusCode.BadRequest);
             }
 
             // Build the filter based on provided parameters
@@ -218,7 +221,7 @@ public class UserService(
                 var students = (await studentService.GetStudentsByFilterAsync(studentFilter)).Data;
                 if (students is null)
                     return ApiResponse<PaginatedResponse<List<GetUserWithStudentResponse>>>.ErrorResult(
-                        "No students found", 404);
+                        "No students found", HttpStatusCode.NotFound);
 
                 var userIds = students.Select(s => s.UserId).ToList();
                 filter &= Builders<User>.Filter.In(u => u.Id, userIds);
@@ -233,7 +236,7 @@ public class UserService(
             if (userList.Count == 0)
             {
                 return ApiResponse<PaginatedResponse<List<GetUserWithStudentResponse>>>.ErrorResult(
-                    "No users found for the given criteria", 404);
+                    "No users found for the given criteria", HttpStatusCode.NotFound);
             }
 
             // Map users to response with student details
@@ -259,26 +262,26 @@ public class UserService(
                 .Take(pageSize)
                 .ToList();
 
-            var paginatedResponse = new PaginatedResponse<List<GetUserWithStudentResponse>>(
-                Data: usersWithStudentDetails,
-                TotalRecords: totalRecords,
-                CurrentPage: page,
-                PageSize: pageSize
-            );
-
+            var paginatedResponse = new PaginatedResponse<List<GetUserWithStudentResponse>>
+            {
+                Data = usersWithStudentDetails,
+                TotalRecords = totalRecords,
+                CurrentPage = page,
+                PageSize = pageSize
+            };
             return ApiResponse<PaginatedResponse<List<GetUserWithStudentResponse>>>.SuccessResult(paginatedResponse);
         }
         catch (FormatException ex)
         {
             logger.LogError(ex, "Invalid format for institute ID.");
             return ApiResponse<PaginatedResponse<List<GetUserWithStudentResponse>>>.ErrorResult(
-                "Invalid ID format.", 400);
+                "Invalid ID format.", HttpStatusCode.BadRequest);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error when getting users");
             return ApiResponse<PaginatedResponse<List<GetUserWithStudentResponse>>>.ErrorResult(
-                "Error when getting users", 500);
+                "Error when getting users", HttpStatusCode.InternalServerError);
         }
     }
 
@@ -289,7 +292,7 @@ public class UserService(
         {
             if (string.IsNullOrEmpty(instituteId))
                 return ApiResponse<GetRoleDistributionResponse>.ErrorResult(
-                    "Institute ID cannot be null or empty.", 400);
+                    "Institute ID cannot be null or empty.", HttpStatusCode.BadRequest);
 
             var users = await _userCollection
                 .Find(user => user.InstituteId == instituteId)
@@ -298,7 +301,7 @@ public class UserService(
 
             if (users.Count == 0)
                 return ApiResponse<GetRoleDistributionResponse>.ErrorResult(
-                    "No users found for the given Institute", 404);
+                    "No users found for the given Institute", HttpStatusCode.NotFound);
 
             var roleCounts = new GetRoleDistributionResponse();
 
@@ -327,29 +330,79 @@ public class UserService(
         {
             logger.LogError(ex, "Invalid format for institute ID.");
             return ApiResponse<GetRoleDistributionResponse>.ErrorResult(
-                "Invalid institute ID format.", 400);
+                "Invalid institute ID format.", HttpStatusCode.BadRequest);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error when getting users.");
             return ApiResponse<GetRoleDistributionResponse>.ErrorResult(
-                "Error when getting users.", 500);
+                "Error when getting users.", HttpStatusCode.InternalServerError);
         }
     }
 
-    public async Task<ApiResponse<User>> FindUserByUserName(string email)
+    public async Task<ApiResponse<User>> FindUserByEmail(string email)
     {
         try
         {
             var user = await _userCollection.Find(u => u.Email == email).FirstOrDefaultAsync();
             return user is null
-                ? ApiResponse<User>.ErrorResult("User not found", 404)
+                ? ApiResponse<User>.ErrorResult("User not found", HttpStatusCode.NotFound)
                 : ApiResponse<User>.SuccessResult(user);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error when getting user");
-            return ApiResponse<User>.ErrorResult("Error when getting user", 500);
+            return ApiResponse<User>.ErrorResult("Error when getting user", HttpStatusCode.InternalServerError);
+        }
+    }
+
+    public async Task<ApiResponse<UpdateUserResponse>> UpdateUserAsync(string userId,
+        UpdateUserRequest updateUserRequest)
+    {
+        try
+        {
+            var filter = Builders<User>.Filter.Eq(u => u.Id, userId);
+            var updateBuilder = Builders<User>.Update;
+            var updates = new List<UpdateDefinition<User>>();
+
+            if (!string.IsNullOrEmpty(updateUserRequest.FirstName))
+                updates.Add(updateBuilder.Set(u => u.FirstName, updateUserRequest.FirstName));
+
+            if (!string.IsNullOrEmpty(updateUserRequest.LastName))
+                updates.Add(updateBuilder.Set(u => u.LastName, updateUserRequest.LastName));
+
+            if (!string.IsNullOrEmpty(updateUserRequest.Email))
+                updates.Add(updateBuilder.Set(u => u.Email, updateUserRequest.Email));
+
+            if (!string.IsNullOrEmpty(updateUserRequest.Password))
+            {
+                var hashedPassword = BCrypt.Net.BCrypt.HashPassword(updateUserRequest.Password);
+                updates.Add(updateBuilder.Set(u => u.PasswordHash, hashedPassword));
+            }
+
+            if (!string.IsNullOrEmpty(updateUserRequest.Role))
+                updates.Add(updateBuilder.Set(u => u.Role, updateUserRequest.Role));
+
+            if (updateUserRequest.IsEMailVerified.HasValue)
+                updates.Add(updateBuilder.Set(u => u.IsEmailVerified, updateUserRequest.IsEMailVerified.Value));
+
+            if (updateUserRequest.InstituteId != null)
+                updates.Add(updateBuilder.Set(u => u.InstituteId, updateUserRequest.InstituteId));
+
+            var update = updateBuilder.Combine(updates);
+            var result = await _userCollection.UpdateOneAsync(filter, update);
+            var successResponse = new UpdateUserResponse
+            {
+                MatchedCount = result.MatchedCount,
+                ModifiedCount = result.ModifiedCount
+            };
+            return ApiResponse<UpdateUserResponse>.SuccessResult(successResponse);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error when updating user");
+            return ApiResponse<UpdateUserResponse>.ErrorResult("Error when updating user",
+                HttpStatusCode.InternalServerError);
         }
     }
 }
