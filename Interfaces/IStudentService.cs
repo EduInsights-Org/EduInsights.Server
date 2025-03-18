@@ -11,4 +11,5 @@ public interface IStudentService
     Task<ApiResponse<List<Student>>> GetAllStudentAsync();
     Task<ApiResponse<Student>> GetStudentByUserIdAsync(string userId);
     Task<ApiResponse<List<Student>>> GetStudentsByFilterAsync(FilterDefinition<Student>? filter = null);
+    Task<ApiResponse<bool>> DeleteStudentByUserIdAsync(string userId);
 }
