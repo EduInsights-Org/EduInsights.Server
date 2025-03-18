@@ -405,4 +405,22 @@ public class UserService(
                 HttpStatusCode.InternalServerError);
         }
     }
+
+    public async Task<ApiResponse<bool>> DeleteUserAsync(string userId)
+    {
+        try
+        {
+            var filter = Builders<User>.Filter.Eq(rt => rt.Id, userId);
+            var user = await _userCollection.DeleteOneAsync(filter);
+            var student = await studentService.DeleteStudentByUserIdAsync(userId);
+            if (user.DeletedCount > 0 && student.Success) return ApiResponse<bool>.SuccessResult(true);
+
+            return ApiResponse<bool>.ErrorResult("Error when deleting user", HttpStatusCode.InternalServerError);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error when deleting user");
+            return ApiResponse<bool>.ErrorResult("Error when deleting user", HttpStatusCode.InternalServerError);
+        }
+    }
 }

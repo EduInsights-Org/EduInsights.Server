@@ -18,4 +18,5 @@ public interface IUserService
         string? instituteId, string? batchId, int page, int pageSize);
 
     Task<ApiResponse<User>> FindUserByEmail(string email);
+    Task<ApiResponse<bool>> DeleteUserAsync(string userId);
 }

@@ -51,12 +51,13 @@ public class StudentService(IMongoDatabase database, ILogger<StudentService> log
         catch (Exception ex)
         {
             logger.LogError(ex, "Error when fetching Students: {ex.Message}", ex.Message);
-            return ApiResponse<List<Student>>.ErrorResult("Error when fetching Students", HttpStatusCode.InternalServerError);
+            return ApiResponse<List<Student>>.ErrorResult("Error when fetching Students",
+                HttpStatusCode.InternalServerError);
         }
     }
-    
-    
-    public async Task<ApiResponse<List<Student>>> GetStudentsByFilterAsync( FilterDefinition<Student>? filter = null)
+
+
+    public async Task<ApiResponse<List<Student>>> GetStudentsByFilterAsync(FilterDefinition<Student>? filter = null)
     {
         try
         {
@@ -68,7 +69,8 @@ public class StudentService(IMongoDatabase database, ILogger<StudentService> log
         catch (Exception ex)
         {
             logger.LogError(ex, "Error when fetching Students: {ex.Message}", ex.Message);
-            return ApiResponse<List<Student>>.ErrorResult("Error when fetching Students", HttpStatusCode.InternalServerError);
+            return ApiResponse<List<Student>>.ErrorResult("Error when fetching Students",
+                HttpStatusCode.InternalServerError);
         }
     }
 
@@ -77,7 +79,7 @@ public class StudentService(IMongoDatabase database, ILogger<StudentService> log
         try
         {
             var student = await _studentsCollection.Find(s => s.UserId == userId).FirstOrDefaultAsync();
-            
+
             return student is null
                 ? ApiResponse<Student>.ErrorResult("No students found", HttpStatusCode.NotFound)
                 : ApiResponse<Student>.SuccessResult(student);
@@ -86,6 +88,22 @@ public class StudentService(IMongoDatabase database, ILogger<StudentService> log
         {
             logger.LogError(ex, "Error when fetching Students: {ex.Message}", ex.Message);
             return ApiResponse<Student>.ErrorResult("Error when fetching Students", HttpStatusCode.InternalServerError);
+        }
+    }
+
+    public async Task<ApiResponse<bool>> DeleteStudentByUserIdAsync(string userId)
+    {
+        try
+        {
+            var filter = Builders<Student>.Filter.Eq(rt => rt.UserId, userId);
+            var student = await _studentsCollection.DeleteOneAsync(filter);
+            if (student.DeletedCount > 0) return ApiResponse<bool>.SuccessResult(true);
+            return ApiResponse<bool>.ErrorResult("Error when deleting student", HttpStatusCode.InternalServerError);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error when deleting Students: {ex.Message}", ex.Message);
+            return ApiResponse<bool>.ErrorResult("Error when deleting Students", HttpStatusCode.InternalServerError);
         }
     }
 }

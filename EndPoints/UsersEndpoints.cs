@@ -54,5 +54,11 @@ public static class UsersEndpoints
                 var response = await userService.AddUsersAndStudentsAsync(request);
                 return Results.Json(response, statusCode: response.StatusCode);
             });
+
+        group.MapDelete("/{userId}", async (string userId, IUserService userService) =>
+        {
+            var response = await userService.DeleteUserAsync(userId);
+            return Results.Json(response, statusCode: response.StatusCode);
+        });
     }
 }
