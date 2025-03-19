@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to EduInsights</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; color: #333; }
+        .email-container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); }
+        .header { background-color: #1a80df; padding: 20px; text-align: center; }
+        .header h1 { color: #ffffff; margin: 0; font-size: 24px; font-weight: bold; }
+        .content { padding: 20px; text-align: center; }
+        .content h2 { color: #1a80df; font-size: 20px; margin-bottom: 10px; }
+        .content p { font-size: 16px; line-height: 1.5; margin: 10px 0; }
+        .welcome-message { font-size: 18px; font-weight: bold; color: #1a80df; margin: 20px 0; padding: 10px; background-color: #f0f8ff; border-radius: 4px; display: inline-block; }
+        .footer { background-color: #f4f4f4; padding: 15px; text-align: center; font-size: 14px; color: #666; }
+        .footer a { color: #1a80df; text-decoration: none; }
+        .footer a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+<div class="email-container">
+    <div class="header">
+        <h1>Welcome to EduInsights</h1>
+    </div>
+    <div class="content">
+        <h2>Hello {{UserName}},</h2>
+        <p>We're thrilled to have you join the EduInsights community! 🎉</p>
+        <div class="welcome-message">Your journey to better insights starts here!</div>
+        <p>With EduInsights, you can:</p>
+        <ul style="text-align: left; margin: 20px auto; max-width: 400px;">
+            <li>Access personalized learning resources.</li>
+            <li>Track your progress with advanced analytics.</li>
+            <li>Connect with a community of learners and educators.</li>
+        </ul>
+        <p>To get started, explore your dashboard and discover all the features we offer.</p>
+        <p>If you have any questions or need assistance, feel free to reach out to our support team.</p>
+    </div>
+    <div class="footer">
+        <p>Best regards,<br>The EduInsights Team</p>
+        <p>Need help? <a href="mailto:support@eduinsight.com">Contact Support</a></p>
+        <p>&copy; {{CurrentYear}} EduInsights. All rights reserved.</p>
+    </div>
+</div>
+</body>
+</html>
