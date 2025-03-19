@@ -17,12 +17,10 @@
         <PackageReference Include="Scalar.AspNetCore" Version="1.2.74" />
         <PackageReference Include="StackExchange.Redis" Version="2.8.24" />
         <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.3.0" />
-    </ItemGroup>
 
-    <ItemGroup>
-        <Content Include="Templates\EmailTemplate.html">
+        <None Update="EmailTemplates\**\*">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </Content>
+        </None>
     </ItemGroup>
 
 </Project>
