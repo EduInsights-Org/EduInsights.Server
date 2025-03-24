@@ -33,8 +33,8 @@ Make sure you have the following installed:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/EduInsights.git
-   cd EduInsights/server
+   git clone git clone https://github.com/EduInsights-Org/EduInsights.Server.git
+   cd EduInsights.server
    ```
 
 2. Restore dependencies:
@@ -113,6 +113,15 @@ EduInsights/server
     <PackageReference Include="StackExchange.Redis" Version="2.8.24" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.3.0" />
 </ItemGroup>
+```
+
+### Important Configuration in `.csproj`
+
+Ensure that email templates are copied to the output directory:
+```xml
+<None Update="EmailTemplates\**\*">
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+</None>
 ```
 
 ## Contributing
