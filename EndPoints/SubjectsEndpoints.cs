@@ -11,11 +11,12 @@ public static class SubjectsEndpoints
     {
         var group = app.MapGroup(SubjectsEndpointsName).WithTags("EduInsights endpoints");
 
-        group.MapGet("/", async (ISubjectService subjectService) =>
-        {
-            var result = await subjectService.GetAllSubjectsAsync();
-            return Results.Json(result, statusCode: result.StatusCode);
-        });
+        group.MapGet("/",
+            async (ISubjectService subjectService, string? instituteId = null, int page = 1, int pageSize = 10) =>
+            {
+                var result = await subjectService.GetSubjectsAsync(instituteId, page, pageSize);
+                return Results.Json(result, statusCode: result.StatusCode);
+            });
 
         group.MapPost("/", async (CreateSubjectRequest subject, ISubjectService subjectService) =>
         {

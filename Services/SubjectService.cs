@@ -3,6 +3,7 @@ using EduInsights.Server.Entities;
 using EduInsights.Server.Enums;
 using EduInsights.Server.Interfaces;
 using MongoDB.Driver;
+using Org.BouncyCastle.Asn1.Ocsp;
 
 namespace EduInsights.Server.Services;
 
@@ -34,13 +35,14 @@ public class SubjectService(IMongoDatabase database, ILogger<BatchService> logge
             if (string.IsNullOrWhiteSpace(request.Name)
                 || string.IsNullOrWhiteSpace(request.Code)
                 || string.IsNullOrWhiteSpace(request.Credit)
-            ) return ApiResponse<Subject>.ErrorResult("Validation error.", HttpStatusCode.BadRequest);
+               ) return ApiResponse<Subject>.ErrorResult("Validation error.", HttpStatusCode.BadRequest);
 
             var subject = new Subject
             {
                 Name = request.Name,
                 Code = request.Code,
                 Credit = request.Credit,
+                InstituteId = request.InstituteId
             };
             await _subjects.InsertOneAsync(subject);
             return ApiResponse<Subject>.SuccessResult(subject);
@@ -67,6 +69,7 @@ public class SubjectService(IMongoDatabase database, ILogger<BatchService> logge
                     Name = request.Name,
                     Code = request.Code,
                     Credit = request.Credit,
+                    InstituteId = request.InstituteId
                 };
 
                 if (string.IsNullOrWhiteSpace(request.Name) ||
@@ -116,6 +119,50 @@ public class SubjectService(IMongoDatabase database, ILogger<BatchService> logge
             logger.LogError(ex, "Error when adding Subjects: {ex.Message}", ex.Message);
             return ApiResponse<AddSubjectsResponse>.ErrorResult("Error when adding Subjects",
                 HttpStatusCode.InternalServerError);
+        }
+    }
+
+    public async Task<ApiResponse<PaginatedResponse<List<Subject>>>> GetSubjectsAsync(
+        string? instituteId, int page, int pageSize)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(instituteId))
+                return ApiResponse<PaginatedResponse<List<Subject>>>.ErrorResult(
+                    "Institute ID must be provided when getting subjects", HttpStatusCode.BadRequest);
+
+            var filter = Builders<Subject>.Filter.Eq(s => s.InstituteId, instituteId);
+
+            var subjectList = await _subjects.Find(filter).ToListAsync();
+            if (subjectList is null)
+                return ApiResponse<PaginatedResponse<List<Subject>>>.ErrorResult(
+                    "No subjects found", HttpStatusCode.NotFound);
+
+            //pagination logic
+            var totalRecords = await _subjects.CountDocumentsAsync(filter);
+            subjectList = subjectList.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+
+            var paginationResponse = new PaginatedResponse<List<Subject>>
+            {
+                Data = subjectList,
+                TotalRecords = totalRecords,
+                CurrentPage = page,
+                PageSize = pageSize
+            };
+
+            return ApiResponse<PaginatedResponse<List<Subject>>>.SuccessResult(paginationResponse);
+        }
+        catch (FormatException ex)
+        {
+            logger.LogError(ex, "Invalid format for institute ID.");
+            return ApiResponse<PaginatedResponse<List<Subject>>>.ErrorResult(
+                "Invalid Institute ID format.", HttpStatusCode.BadRequest);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error when getting sbjects");
+            return ApiResponse<PaginatedResponse<List<Subject>>>.ErrorResult(
+                "Error when getting subjects", HttpStatusCode.InternalServerError);
         }
     }
 }

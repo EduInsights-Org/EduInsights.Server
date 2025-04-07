@@ -12,6 +12,10 @@ public class Subject
     [BsonElement("name")] public string Name { get; set; } = null!;
 
     [BsonElement("code")] public string Code { get; set; } = null!;
-    
+
     [BsonElement("credit")] public string Credit { get; set; } = null!;
+
+    [BsonElement("institute_id")]
+    [BsonRepresentation(BsonType.ObjectId)]
+    public string InstituteId { get; set; } = null!;
 }
