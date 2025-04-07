@@ -3,7 +3,6 @@ using EduInsights.Server.Entities;
 using EduInsights.Server.Enums;
 using EduInsights.Server.Interfaces;
 using MongoDB.Driver;
-using Org.BouncyCastle.Asn1.Ocsp;
 
 namespace EduInsights.Server.Services;
 
@@ -42,7 +41,8 @@ public class SubjectService(IMongoDatabase database, ILogger<BatchService> logge
                 Name = request.Name,
                 Code = request.Code,
                 Credit = request.Credit,
-                InstituteId = request.InstituteId
+                InstituteId = request.InstituteId,
+                Type = request.Type
             };
             await _subjects.InsertOneAsync(subject);
             return ApiResponse<Subject>.SuccessResult(subject);
@@ -69,7 +69,8 @@ public class SubjectService(IMongoDatabase database, ILogger<BatchService> logge
                     Name = request.Name,
                     Code = request.Code,
                     Credit = request.Credit,
-                    InstituteId = request.InstituteId
+                    InstituteId = request.InstituteId,
+                    Type = request.Type
                 };
 
                 if (string.IsNullOrWhiteSpace(request.Name) ||

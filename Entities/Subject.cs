@@ -15,6 +15,8 @@ public class Subject
 
     [BsonElement("credit")] public string Credit { get; set; } = null!;
 
+    [BsonElement("type")] public string Type { get; set; } = null!;
+
     [BsonElement("institute_id")]
     [BsonRepresentation(BsonType.ObjectId)]
     public string InstituteId { get; set; } = null!;
