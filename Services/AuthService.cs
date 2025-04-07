@@ -43,7 +43,7 @@ public class AuthService(
                 || string.IsNullOrWhiteSpace(request.LastName)
                 || string.IsNullOrWhiteSpace(request.Password)
                 || string.IsNullOrWhiteSpace(request.InstituteName)
-               ) return ApiResponse<User>.ErrorResult("Validation error.", HttpStatusCode.Ok);
+               ) return ApiResponse<User>.ErrorResult("Validation error.", HttpStatusCode.BadRequest);
 
             var existingUser = await _userCollection.Find(u => u.Email == request.Email).FirstOrDefaultAsync();
             if (existingUser != null)
