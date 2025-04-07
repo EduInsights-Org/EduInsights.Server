@@ -9,5 +9,5 @@ public interface ISubjectService
 
     Task<ApiResponse<Subject>> AddSubjectAsync(CreateSubjectRequest subject);
     
-    Task<ApiResponse<bool>> AddSubjectsAsync(CreateSubjectRequest[] subjects);
+    Task<ApiResponse<AddSubjectsResponse>> AddSubjectsAsync(CreateSubjectRequest[] subjects);
 }
