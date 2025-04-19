@@ -70,7 +70,7 @@ public class SubjectService(IMongoDatabase database, ILogger<BatchService> logge
                     Code = request.Code,
                     Credit = request.Credit,
                     InstituteId = request.InstituteId,
-                    Type = request.Type
+                    Type = request.Type,
                 };
 
                 if (string.IsNullOrWhiteSpace(request.Name) ||
