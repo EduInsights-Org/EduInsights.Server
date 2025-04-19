@@ -29,6 +29,7 @@ app.MapInstitutesEndPoints();
 app.MapBatchesEndpoints();
 app.MapStudentsEndpoints();
 app.MapSubjectsEndpoints();
+app.MapSemestersEndpointsName();
 app.MapEmailsEndpoints();
 
 app.UseCors(ServiceExtensions.CorsPolicyName);
