@@ -4,6 +4,7 @@ using EduInsights.Server.Interfaces;
 using EduInsights.Server.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using MongoDB.Bson;
 using MongoDB.Driver;
 using StackExchange.Redis;
 
@@ -29,10 +30,30 @@ public static class ServiceExtensions
 
         //Add mongoDB service
         var mongoDbSettings = configuration.GetSection("EduInsightsDatabase").Get<DatabaseSettings>();
-        var mongoClient = new MongoClient(mongoDbSettings!.ConnectionString);
-        var database = mongoClient.GetDatabase(mongoDbSettings.DatabaseName);
-        builder.Services.AddSingleton<IMongoClient>(mongoClient);
-        builder.Services.AddSingleton(database);
+        var mongoClientSettings = MongoClientSettings.FromConnectionString(mongoDbSettings!.ConnectionString);
+
+        var mongoClient = new MongoClient(mongoClientSettings);
+
+        try
+        {
+            var database = mongoClient.GetDatabase(mongoDbSettings.DatabaseName);
+            // Verify connection
+            database.RunCommandAsync((Command<BsonDocument>)"{ping:1}").Wait();
+
+            builder.Services.AddSingleton<IMongoClient>(mongoClient);
+            builder.Services.AddSingleton(database);
+
+            var logger = builder.Services.BuildServiceProvider().GetRequiredService<ILogger<Program>>();
+            logger.LogInformation("MongoDB connected successfully to database: {DatabaseName}",
+                mongoDbSettings.DatabaseName);
+        }
+        catch (Exception ex)
+        {
+            var logger = builder.Services.BuildServiceProvider().GetRequiredService<ILogger<Program>>();
+            logger.LogError(ex, "Failed to connect to MongoDB. Connection string: {ConnectionString}",
+                mongoDbSettings.ConnectionString);
+            throw;
+        }
 
         //Add JWT service
         var jwtSettings = configuration.GetSection("JwtSettings");
@@ -69,6 +90,8 @@ public static class ServiceExtensions
         builder.Services.AddScoped<IStudentService, StudentService>();
         builder.Services.AddScoped<IEmailService, EmailService>();
         builder.Services.AddScoped<ISubjectService, SubjectService>();
+        builder.Services.AddScoped<ISemesterService, SemesterService>();
+        builder.Services.AddScoped<IResultService, ResultService>();
         builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
     }
 }
