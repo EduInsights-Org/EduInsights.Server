@@ -73,6 +73,23 @@ public class StudentService(IMongoDatabase database, ILogger<StudentService> log
                 HttpStatusCode.InternalServerError);
         }
     }
+    
+    public async Task<ApiResponse<Student>> GetStudentByFilterAsync(FilterDefinition<Student>? filter = null)
+    {
+        try
+        {
+            var student = await _studentsCollection.Find(filter).FirstOrDefaultAsync();
+            return student is null
+                ? ApiResponse<Student>.ErrorResult("No student found", HttpStatusCode.NotFound)
+                : ApiResponse<Student>.SuccessResult(student);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error when fetching Student: {ex.Message}", ex.Message);
+            return ApiResponse<Student>.ErrorResult("Error when fetching Student",
+                HttpStatusCode.InternalServerError);
+        }
+    }
 
     public async Task<ApiResponse<Student>> GetStudentByUserIdAsync(string userId)
     {

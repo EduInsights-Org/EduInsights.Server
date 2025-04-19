@@ -91,6 +91,7 @@ public static class ServiceExtensions
         builder.Services.AddScoped<IEmailService, EmailService>();
         builder.Services.AddScoped<ISubjectService, SubjectService>();
         builder.Services.AddScoped<ISemesterService, SemesterService>();
+        builder.Services.AddScoped<IResultService, ResultService>();
         builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
     }
 }
