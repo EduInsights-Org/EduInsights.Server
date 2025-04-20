@@ -21,7 +21,8 @@ public class ResultService(IMongoDatabase database, ILogger<ResultService> logge
         {
             Grade = result.Grade,
             StudentId = student.Data!.Id,
-            SubjectId = result.SubjectId
+            SubjectId = result.SubjectId,
+            SemesterId = result.SemesterId,
         };
         await _resultsCollection.InsertOneAsync(re);
         return ApiResponse<Result>.SuccessResult(re);

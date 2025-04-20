@@ -16,6 +16,10 @@ public class Result
     [BsonElement("subject_id")]
     [BsonRepresentation(BsonType.ObjectId)]
     public string SubjectId { get; set; } = null!;
+    
+    [BsonElement("semester_id")]
+    [BsonRepresentation(BsonType.ObjectId)]
+    public string SemesterId { get; set; } = null!;
 
     [BsonElement("grade")] public string Grade { get; set; } = null!;
 }
