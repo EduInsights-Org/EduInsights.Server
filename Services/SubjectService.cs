@@ -10,14 +10,21 @@ public class SubjectService(IMongoDatabase database, ILogger<BatchService> logge
 {
     private readonly IMongoCollection<Subject> _subjects = database.GetCollection<Subject>("subjects");
 
-    public async Task<ApiResponse<List<Subject>>> GetAllSubjectsAsync()
+    public async Task<ApiResponse<List<Subject>>> GetAllSubjectsAsync(string? instituteId)
     {
         try
         {
-            var subject = await _subjects.Find(_ => true).ToListAsync();
-            return subject is null
+            if (string.IsNullOrWhiteSpace(instituteId))
+                return ApiResponse<List<Subject>>.ErrorResult(
+                    "Institute ID must be provided when getting subjects", HttpStatusCode.BadRequest);
+
+            var filter = Builders<Subject>.Filter.Eq(s => s.InstituteId, instituteId);
+
+            var subjectList = await _subjects.Find(filter).ToListAsync();
+
+            return subjectList is null
                 ? ApiResponse<List<Subject>>.ErrorResult("Subjects not found.", HttpStatusCode.NotFound)
-                : ApiResponse<List<Subject>>.SuccessResult(subject);
+                : ApiResponse<List<Subject>>.SuccessResult(subjectList);
         }
         catch (Exception ex)
         {
