@@ -12,9 +12,9 @@ public static class SubjectsEndpoints
         var group = app.MapGroup(SubjectsEndpointsName).WithTags("EduInsights endpoints");
 
         group.MapGet("/",
-            async (ISubjectService subjectService, string? instituteId = null, int page = 1, int pageSize = 10) =>
+            async (ISubjectService subjectService, string? instituteId = null) =>
             {
-                var result = await subjectService.GetSubjectsAsync(instituteId, page, pageSize);
+                var result = await subjectService.GetAllSubjectsAsync(instituteId);
                 return Results.Json(result, statusCode: result.StatusCode);
             });
 
