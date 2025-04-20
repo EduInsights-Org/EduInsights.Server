@@ -7,5 +7,5 @@ public interface IResultService
 {
     Task<ApiResponse<Result>> AddResultAsync(CreateResultRequest result);
 
-    Task<ApiResponse<List<Result>>> GetAllResultsAsync();
+    Task<ApiResponse<List<GetResultResponse>>> GetAllResultsAsync();
 }
