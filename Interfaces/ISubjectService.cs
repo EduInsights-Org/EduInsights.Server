@@ -1,5 +1,6 @@
 using EduInsights.Server.Contracts;
 using EduInsights.Server.Entities;
+using MongoDB.Driver;
 
 namespace EduInsights.Server.Interfaces;
 
@@ -12,4 +13,6 @@ public interface ISubjectService
     Task<ApiResponse<AddSubjectsResponse>> AddSubjectsAsync(CreateSubjectRequest[] subjects);
 
     Task<ApiResponse<PaginatedResponse<List<Subject>>>> GetSubjectsAsync(string? instituteId, int page, int pageSize);
+    
+    Task<ApiResponse<Subject>> GetSubjectByFilterAsync(FilterDefinition<Subject>? filter = null);
 }

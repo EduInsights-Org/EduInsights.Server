@@ -173,4 +173,21 @@ public class SubjectService(IMongoDatabase database, ILogger<BatchService> logge
                 "Error when getting subjects", HttpStatusCode.InternalServerError);
         }
     }
+
+    public async Task<ApiResponse<Subject>> GetSubjectByFilterAsync(FilterDefinition<Subject>? filter = null)
+    {
+        try
+        {
+            var subject = await _subjects.Find(filter).FirstOrDefaultAsync();
+            return subject is null
+                ? ApiResponse<Subject>.ErrorResult("No student found", HttpStatusCode.NotFound)
+                : ApiResponse<Subject>.SuccessResult(subject);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error when fetching Subject: {ex.Message}", ex.Message);
+            return ApiResponse<Subject>.ErrorResult("Error when fetching Subject",
+                HttpStatusCode.InternalServerError);
+        }
+    }
 }

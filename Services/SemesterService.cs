@@ -55,4 +55,21 @@ public class SemesterService(IMongoDatabase database, ILogger<BatchService> logg
                 HttpStatusCode.InternalServerError);
         }
     }
+
+    public async Task<ApiResponse<Semester>> GetSemesterByFilterAsync(FilterDefinition<Semester>? filter = null)
+    {
+        try
+        {
+            var semester = await _semester.Find(filter).FirstOrDefaultAsync();
+            return semester is null
+                ? ApiResponse<Semester>.ErrorResult("No semester found", HttpStatusCode.NotFound)
+                : ApiResponse<Semester>.SuccessResult(semester);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error when fetching Semester: {ex.Message}", ex.Message);
+            return ApiResponse<Semester>.ErrorResult("Error when fetching Semester",
+                HttpStatusCode.InternalServerError);
+        }
+    }
 }
