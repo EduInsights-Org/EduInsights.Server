@@ -6,7 +6,8 @@ using MongoDB.Driver;
 
 namespace EduInsights.Server.Services;
 
-public class StudentService(IMongoDatabase database, ILogger<StudentService> logger) : IStudentService
+public class StudentService(IMongoDatabase database, ILogger<StudentService> logger)
+    : IStudentService
 {
     private readonly IMongoCollection<Student> _studentsCollection = database.GetCollection<Student>("students");
 
@@ -73,7 +74,7 @@ public class StudentService(IMongoDatabase database, ILogger<StudentService> log
                 HttpStatusCode.InternalServerError);
         }
     }
-    
+
     public async Task<ApiResponse<Student>> GetStudentByFilterAsync(FilterDefinition<Student>? filter = null)
     {
         try

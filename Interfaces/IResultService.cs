@@ -9,4 +9,6 @@ public interface IResultService
 
     Task<ApiResponse<List<GetResultResponse>>> GetAllResultsAsync();
     Task<ApiResponse<GetGradeDistribution>> GetGradeDistribution(string? instituteId);
+    
+    Task<ApiResponse<List<StudentGpaResponse>>> CalculateAllStudentGPAsAsync(string? instituteId);
 }

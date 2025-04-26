@@ -56,6 +56,7 @@ public class UserService(
                 IndexNumber = createUser.IndexNumber,
                 UserId = user.Id,
                 BatchId = createUser.BatchId,
+                InstituteId = createUser.InstituteId
             };
             var addStudentResult = await studentService.AddStudentAsync(student);
             return !addStudentResult.Success
@@ -130,7 +131,9 @@ public class UserService(
                         {
                             IndexNumber = s.IndexNumber!,
                             BatchId = s.BatchId,
-                            UserId = usersToInsert.Find(u => u.Email == s.Email)!.Id
+                            UserId = usersToInsert.Find(u => u.Email == s.Email)!.Id,
+                            InstituteId = s.InstituteId
+
                         })
                     .ToList();
 
@@ -421,6 +424,23 @@ public class UserService(
         {
             logger.LogError(ex, "Error when deleting user");
             return ApiResponse<bool>.ErrorResult("Error when deleting user", HttpStatusCode.InternalServerError);
+        }
+    }
+
+    public async Task<ApiResponse<List<User>>> GetUsersByFilterAsync(FilterDefinition<User>? filter = null)
+    {
+        try
+        {
+            var users = await _userCollection.Find(filter).ToListAsync();
+            return users is null
+                ? ApiResponse<List<User>>.ErrorResult("No users found", HttpStatusCode.NotFound)
+                : ApiResponse<List<User>>.SuccessResult(users);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error when fetching Users: {ex.Message}", ex.Message);
+            return ApiResponse<List<User>>.ErrorResult("Error when fetching Students",
+                HttpStatusCode.InternalServerError);
         }
     }
 }

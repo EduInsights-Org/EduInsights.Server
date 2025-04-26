@@ -31,5 +31,12 @@ public static class ResultsEndpoints
                 var result = await resultService.GetGradeDistribution(instituteId);
                 return Results.Json(result, statusCode: result.StatusCode);
             });
+
+        group.MapGet("/students-gpa",
+            async (IResultService resultService, string? instituteId, string? batchId) =>
+            {
+                var result = await resultService.CalculateAllStudentGPAsAsync(instituteId);
+                return Results.Json(result, statusCode: result.StatusCode);
+            });
     }
 }

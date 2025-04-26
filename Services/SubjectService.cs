@@ -18,9 +18,7 @@ public class SubjectService(IMongoDatabase database, ILogger<BatchService> logge
                 return ApiResponse<List<Subject>>.ErrorResult(
                     "Institute ID must be provided when getting subjects", HttpStatusCode.BadRequest);
 
-            var filter = Builders<Subject>.Filter.Eq(s => s.InstituteId, instituteId);
-
-            var subjectList = await _subjects.Find(filter).ToListAsync();
+            var subjectList = await _subjects.Find(s=> s.InstituteId == instituteId).ToListAsync();
 
             return subjectList is null
                 ? ApiResponse<List<Subject>>.ErrorResult("Subjects not found.", HttpStatusCode.NotFound)

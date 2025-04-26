@@ -1,5 +1,6 @@
 using EduInsights.Server.Contracts;
 using EduInsights.Server.Entities;
+using MongoDB.Driver;
 
 namespace EduInsights.Server.Interfaces;
 
@@ -19,4 +20,5 @@ public interface IUserService
 
     Task<ApiResponse<User>> FindUserByEmail(string email);
     Task<ApiResponse<bool>> DeleteUserAsync(string userId);
+    Task<ApiResponse<List<User>>> GetUsersByFilterAsync(FilterDefinition<User>? filter = null);
 }
