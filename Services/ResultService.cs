@@ -29,6 +29,7 @@ public class ResultService(
             StudentId = student.Data!.Id,
             SubjectId = result.SubjectId,
             SemesterId = result.SemesterId,
+            InstituteId = result.InstituteId,
         };
         await _resultsCollection.InsertOneAsync(re);
         return ApiResponse<Result>.SuccessResult(re);
@@ -73,5 +74,82 @@ public class ResultService(
             ? ApiResponse<List<GetResultResponse>>.ErrorResult("Results not found",
                 HttpStatusCode.NotFound)
             : ApiResponse<List<GetResultResponse>>.SuccessResult(resultList);
+    }
+
+    public async Task<ApiResponse<GetGradeDistribution>> GetGradeDistribution(string? instituteId)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(instituteId))
+                return ApiResponse<GetGradeDistribution>.ErrorResult(
+                    "Institute ID cannot be null or empty.", HttpStatusCode.BadRequest);
+
+            var results = await _resultsCollection
+                .Find(r => r.InstituteId == instituteId)
+                .Project(result => new { result.Grade })
+                .ToListAsync();
+
+            var gradeDistribution = new GetGradeDistribution();
+
+            foreach (var result in results)
+            {
+                switch (result.Grade)
+                {
+                    case "A+":
+                        gradeDistribution.APlus++;
+                        break;
+                    case "A":
+                        gradeDistribution.A++;
+                        break;
+                    case "A-":
+                        gradeDistribution.AMinus++;
+                        break;
+                    case "B+":
+                        gradeDistribution.BPlus++;
+                        break;
+                    case "B":
+                        gradeDistribution.B++;
+                        break;
+                    case "B-":
+                        gradeDistribution.BMinus++;
+                        break;
+                    case "C+":
+                        gradeDistribution.CPlus++;
+                        break;
+                    case "C":
+                        gradeDistribution.C++;
+                        break;
+                    case "C-":
+                        gradeDistribution.CMinus++;
+                        break;
+                    case "D+":
+                        gradeDistribution.DPlus++;
+                        break;
+                    case "D":
+                        gradeDistribution.D++;
+                        break;
+                    case "D-":
+                        gradeDistribution.DMinus++;
+                        break;
+                    case "E":
+                        gradeDistribution.E++;
+                        break;
+                }
+            }
+
+            return ApiResponse<GetGradeDistribution>.SuccessResult(gradeDistribution);
+        }
+        catch (FormatException ex)
+        {
+            logger.LogError(ex, "Invalid format for institute ID.");
+            return ApiResponse<GetGradeDistribution>.ErrorResult(
+                "Invalid institute ID format.", HttpStatusCode.BadRequest);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error when getting grades.");
+            return ApiResponse<GetGradeDistribution>.ErrorResult(
+                "Error when getting grdes.", HttpStatusCode.InternalServerError);
+        }
     }
 }

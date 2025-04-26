@@ -24,5 +24,12 @@ public static class ResultsEndpoints
                 var result = await resultService.GetAllResultsAsync();
                 return Results.Json(result, statusCode: result.StatusCode);
             });
+
+        group.MapGet("/grade-distribution",
+            async (IResultService resultService, string? instituteId) =>
+            {
+                var result = await resultService.GetGradeDistribution(instituteId);
+                return Results.Json(result, statusCode: result.StatusCode);
+            });
     }
 }
