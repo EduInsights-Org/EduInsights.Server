@@ -63,4 +63,21 @@ public class BatchService(IMongoDatabase database, ILogger<BatchService> logger)
                 HttpStatusCode.InternalServerError);
         }
     }
+    
+    public async Task<ApiResponse<Batch>> BatchByFilterAsync(FilterDefinition<Batch>? filter = null)
+    {
+        try
+        {
+            var batch = await _batchesCollection.Find(filter).FirstOrDefaultAsync();
+            return batch is null
+                ? ApiResponse<Batch>.ErrorResult("No batch found", HttpStatusCode.NotFound)
+                : ApiResponse<Batch>.SuccessResult(batch);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error when fetching Batch: {ex.Message}", ex.Message);
+            return ApiResponse<Batch>.ErrorResult("Error when fetching Batch",
+                HttpStatusCode.InternalServerError);
+        }
+    }
 }

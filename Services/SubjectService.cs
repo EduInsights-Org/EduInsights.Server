@@ -10,14 +10,19 @@ public class SubjectService(IMongoDatabase database, ILogger<BatchService> logge
 {
     private readonly IMongoCollection<Subject> _subjects = database.GetCollection<Subject>("subjects");
 
-    public async Task<ApiResponse<List<Subject>>> GetAllSubjectsAsync()
+    public async Task<ApiResponse<List<Subject>>> GetAllSubjectsAsync(string? instituteId)
     {
         try
         {
-            var subject = await _subjects.Find(_ => true).ToListAsync();
-            return subject is null
+            if (string.IsNullOrWhiteSpace(instituteId))
+                return ApiResponse<List<Subject>>.ErrorResult(
+                    "Institute ID must be provided when getting subjects", HttpStatusCode.BadRequest);
+
+            var subjectList = await _subjects.Find(s=> s.InstituteId == instituteId).ToListAsync();
+
+            return subjectList is null
                 ? ApiResponse<List<Subject>>.ErrorResult("Subjects not found.", HttpStatusCode.NotFound)
-                : ApiResponse<List<Subject>>.SuccessResult(subject);
+                : ApiResponse<List<Subject>>.SuccessResult(subjectList);
         }
         catch (Exception ex)
         {
@@ -164,6 +169,23 @@ public class SubjectService(IMongoDatabase database, ILogger<BatchService> logge
             logger.LogError(ex, "Error when getting sbjects");
             return ApiResponse<PaginatedResponse<List<Subject>>>.ErrorResult(
                 "Error when getting subjects", HttpStatusCode.InternalServerError);
+        }
+    }
+
+    public async Task<ApiResponse<Subject>> GetSubjectByFilterAsync(FilterDefinition<Subject>? filter = null)
+    {
+        try
+        {
+            var subject = await _subjects.Find(filter).FirstOrDefaultAsync();
+            return subject is null
+                ? ApiResponse<Subject>.ErrorResult("No student found", HttpStatusCode.NotFound)
+                : ApiResponse<Subject>.SuccessResult(subject);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error when fetching Subject: {ex.Message}", ex.Message);
+            return ApiResponse<Subject>.ErrorResult("Error when fetching Subject",
+                HttpStatusCode.InternalServerError);
         }
     }
 }
