@@ -19,14 +19,14 @@ public static class ResultsEndpoints
             });
 
         group.MapGet("/",
-            async (IResultService resultService) =>
+            async (IResultService resultService, string? instituteId, string? batchId = null) =>
             {
-                var result = await resultService.GetAllResultsAsync();
+                var result = await resultService.GetAllResultsAsync(instituteId, batchId);
                 return Results.Json(result, statusCode: result.StatusCode);
             });
 
         group.MapGet("/grade-distribution",
-            async (IResultService resultService, string? instituteId) =>
+            async (IResultService resultService, string instituteId) =>
             {
                 var result = await resultService.GetGradeDistribution(instituteId);
                 return Results.Json(result, statusCode: result.StatusCode);
@@ -35,7 +35,14 @@ public static class ResultsEndpoints
         group.MapGet("/students-gpa",
             async (IResultService resultService, string? instituteId, string? batchId) =>
             {
-                var result = await resultService.CalculateAllStudentGPAsAsync(instituteId);
+                var result = await resultService.CalculateAllStudentGPAsAsync(instituteId, batchId);
+                return Results.Json(result, statusCode: result.StatusCode);
+            });
+
+        group.MapGet("/average-gpas",
+            async (IResultService resultService, string? instituteId) =>
+            {
+                var result = await resultService.GetBatchAverageGPAsAsync(instituteId);
                 return Results.Json(result, statusCode: result.StatusCode);
             });
     }
