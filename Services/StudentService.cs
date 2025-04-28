@@ -57,6 +57,23 @@ public class StudentService(IMongoDatabase database, ILogger<StudentService> log
         }
     }
 
+    public async Task<ApiResponse<List<Student>>> GetStudentByBatchIdAsync(string batchId)
+    {
+        try
+        {
+            var students = await _studentsCollection.Find(s => s.BatchId == batchId).ToListAsync();
+            return students is null
+                ? ApiResponse<List<Student>>.ErrorResult("No students found for batch", HttpStatusCode.NotFound)
+                : ApiResponse<List<Student>>.SuccessResult(students);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error when fetching Students: {ex.Message}", ex.Message);
+            return ApiResponse<List<Student>>.ErrorResult("Error when fetching Students",
+                HttpStatusCode.InternalServerError);
+        }
+    }
+
 
     public async Task<ApiResponse<List<Student>>> GetStudentsByFilterAsync(FilterDefinition<Student>? filter = null)
     {
@@ -66,6 +83,12 @@ public class StudentService(IMongoDatabase database, ILogger<StudentService> log
             return students is null
                 ? ApiResponse<List<Student>>.ErrorResult("No students found", HttpStatusCode.NotFound)
                 : ApiResponse<List<Student>>.SuccessResult(students);
+        }
+        catch (FormatException ex)
+        {
+            logger.LogError(ex, "Invalid format for institute ID or Batch ID");
+            return ApiResponse<List<Student>>.ErrorResult("Invalid format for institute ID or Batch ID",
+                HttpStatusCode.BadRequest);
         }
         catch (Exception ex)
         {

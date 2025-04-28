@@ -15,5 +15,11 @@ public static class StudentsEndpoints
             var result = await studentService.GetAllStudentAsync();
             return Results.Json(result, statusCode: result.StatusCode);
         });
+        
+        group.MapGet("/findByBatch/{batchId}", async (IStudentService studentService, string batchId) =>
+        {
+            var result = await studentService.GetStudentByBatchIdAsync(batchId);
+            return Results.Json(result, statusCode: result.StatusCode);
+        });
     }
 }
